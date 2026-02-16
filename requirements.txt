@@ -1,0 +1,14 @@
+lxml
+mysql-connector-python
+numpy
+openpyxl
+pandas
+Pillow
+pypdfium2
+pytesseract
+python-dateutil
+pyyaml>=6.0
+requests
+streamlit>=1.34
+urllib3
+xlsxwriter

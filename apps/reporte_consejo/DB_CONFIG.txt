@@ -1,0 +1,7 @@
+DB_CONFIG = {
+    "host": "haycash-prod.cluster-cymmiznbjsjw.us-east-1.rds.amazonaws.com",          # <-- pon aquí tu host real
+    "user": "daniel.negrete",       # <-- tu usuario
+    "password": "xX9SumNUXV09,527%7wI",  # <-- tu password
+    "database": "calculados",
+    "port": 63306,
+}

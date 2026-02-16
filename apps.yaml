@@ -1,0 +1,49 @@
+apps:
+  - id: cdf_isaac
+    name: Lector CSF
+    entry: app_isaac.py
+    workdir: apps/cdf_isaac
+    port: 8508
+    icon: icons/lector_csf.svg
+
+  - id: diegobbva
+    name: CSV a TXT BBVA
+    entry: streamlit_app.py
+    workdir: apps/diegobbva
+    port: 8503
+    icon: icons/csv_a_txt_bbva.svg
+
+  - id: analisis_leads
+    name: Reporte Interactivo de Leads
+    entry: streamlit_app.py
+    workdir: apps/analisis_leads
+    port: 8502
+    icon: icons/reporte_interactivo_de_leads.svg
+
+  - id: factoraje
+    name: Factoraje
+    entry: streamlit_app.py
+    workdir: apps/factoraje
+    port: 8504
+    icon: icons/factoraje.svg
+
+  - id: lector_edocat
+    name: Lector Edocat
+    entry: app.py
+    workdir: apps/lector_edocat
+    port: 8505
+    icon: icons/lector_edocat.svg
+
+  - id: reporte_consejo
+    name: Reporte Consejo
+    entry: streamlit_app.py
+    workdir: apps/reporte_consejo
+    port: 8507
+    icon: icons/reporte_consejo.svg
+
+  - id: lector_contrato
+    name: Lector Contrato
+    entry: app.py
+    workdir: apps/lector_contrato
+    port: 8506
+    icon: icons/lector_contrato.svg
