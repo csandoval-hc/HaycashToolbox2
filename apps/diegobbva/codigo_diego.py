@@ -1,294 +1,256 @@
-#!/usr/bin/env python3
 """
-BBVA Domiciliación – byte-stable fixed-width output (300 BYTES per record)
-
-THIS VERSION RESTORES YOUR ORIGINAL EXTRACTION LOGIC:
-- DOES NOT require any specific Excel column to exist
-- Uses your same defaults and `.get(...)` behavior
-- Keeps your sequencing, ref_counter behavior, IVA calc, etc.
-- Still enforces:
-  - latin-1 single-byte encoding
-  - CRLF
-  - EXACTLY 300 bytes per record
-
-Layout corrections kept:
-- Header: RFC written in its own 18-char field (still shows your same RFC)
-- Header: block written as 7 digits (BBVA requires 7)
-- Summary: operation code 30, block matches header, total = SUM(importe) cents
+BBVA Domiciliación Generator – Smart Template Mode (Streamlit)
+- Same generation logic as your Tkinter script
+- Streamlit UI for Streamlit Cloud
+- Outputs latin-1 + CRLF, fixed-length records (default 300 or template length)
 """
-import pandas as pd
-from pathlib import Path
-import sys
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+
+from __future__ import annotations
+
 from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
 
 # =======================
-# CONSTANTS (FROM YOUR ORIGINAL CODE)
+# HELPERS (same logic)
 # =======================
-BUSINESS_EMISOR_STR = "BANCO ACTINVER SA IBM POR CTA FID 6011  PBI*061115SC6"
-RFC_EMISOR_DEFAULT  = "PBI*061115SC6"
-TITULAR_DEFAULT     = "HAYCASH SAPI DE CV"
-BLOQUE_DEFAULT      = "120000"   # your original value (we output as 7 digits: zfill)
+def normalize_text(text: str, length: int) -> str:
+    """Uppercases, removes special chars, and aligns left."""
+    t = str(text or "").upper().strip()
+    t = t.replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U")
+    t = t.replace("Ñ", "N").replace("\n", " ").replace("\r", "")
+    return t[:length].ljust(length)
 
 
-# ---------- helpers (byte-stable) ---------------------------------------
-def to_fixed_300_bytes(line: str) -> bytes:
-    b = line.encode("latin-1", errors="replace")
-    if len(b) < 300:
-        b = b + (b" " * (300 - len(b)))
-    elif len(b) > 300:
-        b = b[:300]
-    return b
+def format_account(cuenta: str, tipo_code: str) -> str:
+    """Formats account based on type (01=10, 03=16, 40=18)."""
+    digits = "".join(filter(str.isdigit, str(cuenta)))
+    if tipo_code == "40":  # CLABE
+        return digits[-18:].zfill(20)
+    if tipo_code == "03":  # Debit
+        return digits[-16:].zfill(20)
+    # Cheques
+    return digits[-10:].zfill(20)
 
 
-def write_fixed_file(txt_path: str, lines: list[str], final_crlf: bool = True) -> str:
-    with open(txt_path, "wb") as f:
-        for i, s in enumerate(lines):
-            f.write(to_fixed_300_bytes(s))
-            if i < len(lines) - 1 or final_crlf:
-                f.write(b"\r\n")
-    return txt_path
+def infer_tipo_cuenta(cuenta: str) -> str:
+    l = len("".join(filter(str.isdigit, str(cuenta))))
+    if l >= 18:
+        return "40"
+    if l >= 16:
+        return "03"
+    return "01"
 
 
-def only_digits(s: str) -> str:
-    return "".join(ch for ch in str(s or "") if ch.isdigit())
-
-
-def n_width_digits(s: str, width: int) -> str:
+# =======================
+# FILE PARSER (same logic, but bytes)
+# =======================
+def parse_template_bytes(template_bytes: bytes) -> dict:
     """
-    Keep ONLY digits. Left-pad with zeros to width. If longer, keep last `width` digits.
+    Reads the valid .exp bytes to extract static header info.
     """
-    d = only_digits(s)
-    if len(d) > width:
-        d = d[-width:]
-    return d.zfill(width)
+    if not template_bytes:
+        return {}
+
+    try:
+        lines = template_bytes.splitlines()
+        if not lines:
+            return {}
+
+        sample_line = lines[0]
+        header_str = sample_line.decode("latin-1", errors="ignore")
+
+        return {
+            "len": len(sample_line),
+            "bank": header_str[11:14],
+            "service": header_str[15],
+            "name": header_str[60:100],
+            "rfc": header_str[100:118],
+            "block_prefix": header_str[16:23],
+        }
+    except Exception as e:
+        # Keep behavior: warn but continue with defaults
+        st.warning(f"Warning parsing template: {e}")
+        return {}
 
 
-# ---------- core generator (keeps your structure) -----------------------
-class BBVAFixedGenerator:
-    @staticmethod
-    def header(fecha: str, bloque: str = BLOQUE_DEFAULT) -> str:
-        # BBVA requires 7 chars for block; keep your value but left-pad with zeros
-        bloque_7 = n_width_digits(bloque, 7)
+# =======================
+# GENERATOR (same logic, returns bytes)
+# =======================
+def generate_file_bytes(
+    excel_bytes: bytes,
+    excel_name: str,
+    template_bytes: bytes | None,
+    fecha_proc: str,
+    ref_start: str,
+    block_num: str,
+) -> tuple[bytes, str]:
+    # 1. Defaults (same values)
+    config = {
+        "len": 300,
+        "name": "BANCO ACTINVER SA IBM POR CTA FID 6011",
+        "rfc": "PBI*061115SC6     ",  # kept
+        "bank": "012",
+        "service": "2",
+    }
 
-        razon_40 = BUSINESS_EMISOR_STR.upper()[:40].ljust(40)
-        rfc_18   = RFC_EMISOR_DEFAULT.upper()[:18].ljust(18)
+    # 2. Override with Template if provided
+    if template_bytes:
+        config.update(parse_template_bytes(template_bytes))
 
-        # Build header deterministically (byte clamp happens on write)
-        parts = [
-            "01",
-            f"{1:07d}",          # sequence
-            "30",                # op code
-            "012",               # bank participant
-            "E",                 # direction
-            "2",                 # service
-            bloque_7,            # block (7)
-            fecha,               # date
-            "01",                # currency
-            "00",                # reject cause
-            " " * 25,            # filler
-            razon_40,            # business/razon social (40)
-            rfc_18,              # RFC (18)
-            " " * 182            # filler to 300
-        ]
-        return "".join(parts)
+    if not fecha_proc:
+        fecha_proc = datetime.now().strftime("%Y%m%d")
 
-    @staticmethod
-    def detail(seq: int, fecha: str, importe: float, ref_num: int,
-               cliente_id: str, nombre_cliente: str, referencia: str,
-               titular_servicio: str = TITULAR_DEFAULT) -> str:
-        amount_cents = int(round(importe * 100))
-        iva_cents    = int(round(importe * 0.16 * 100))
+    # Read dataframe (xlsx vs csv) from bytes
+    ext = Path(excel_name).suffix.lower()
+    if ext in (".xlsx", ".xls", ".xlsm"):
+        df = pd.read_excel(BytesIO(excel_bytes), dtype=str)
+    else:
+        df = pd.read_csv(BytesIO(excel_bytes), dtype=str)
 
-        # YOUR ORIGINAL INTENT, BUT SAFER:
-        # - accept anything, extract digits, pad to 20
-        # - (avoids crashes on non-numeric values)
-        cli_20 = n_width_digits(cliente_id, 20)
-        ref_7  = n_width_digits(ref_num, 7)
-
-        nom_40 = nombre_cliente.upper()[:40].ljust(40)
-        ref_40 = referencia.upper()[:40].ljust(40)
-        tit_40 = titular_servicio.upper()[:40].ljust(40)
-        legend = referencia.upper()[:40].ljust(40)   # ONLY reference text
-
-        parts = [
-            "02",
-            f"{seq:07d}",
-            "30",
-            "01",
-            f"{amount_cents:015d}",
-            fecha,
-            " " * 24,
-            "51",
-            fecha,
-            "012",
-            "01",
-            cli_20,
-            nom_40,
-            ref_40,
-            tit_40,
-            f"{iva_cents:015d}",
-            ref_7,
-            legend,
-            "00",
-            " " * 21
-        ]
-        return ''.join(parts)
-
-    @staticmethod
-    def summary(last_detail_seq: int, num_regs: int, total_importe_cents: int, bloque: str = BLOQUE_DEFAULT) -> str:
-        bloque_7 = n_width_digits(bloque, 7)
-        parts = [
-            "09",
-            f"{last_detail_seq+1:07d}",
-            "30",
-            bloque_7,
-            f"{num_regs:07d}",
-            f"{total_importe_cents:018d}",
-            " " * 257
-        ]
-        return "".join(parts)
-
-
-# ---------- high-level API (dynamic) ------------------------------------
-def generate_bbva_file(excel_path, txt_path, fecha: str, start_ref=1204000, bloque: str = BLOQUE_DEFAULT):
-    # use TODAY if date box left empty
-    if not fecha or fecha.strip() == "":
-        fecha = datetime.now().strftime("%Y%m%d")
-
-    ext = Path(excel_path).suffix.lower()
-    df = (pd.read_excel(excel_path, dtype=str) if ext in (".xls", ".xlsx", ".xlsm")
-          else pd.read_csv(excel_path, dtype=str))
     df = df.fillna("")
 
-    lines = [BBVAFixedGenerator.header(fecha, bloque=bloque)]
+    lines: list[str] = []
 
-    total_importe_cents = 0
-    ref_counter = int(start_ref)
+    # --- HEADER (01) ---
+    h_bank = (config.get("bank") or "012")
+    h_serv = (config.get("service") or "2")
+    h_name = (config.get("name") or "").ljust(40)[:40]
+    h_rfc = (config.get("rfc") or "").ljust(18)[:18]
+    h_block = str(block_num).zfill(7)
+
+    header = (
+        f"01000000130{h_bank}E{h_serv}{h_block}{fecha_proc}0100"
+        + (" " * 25)
+        + h_name
+        + h_rfc
+        + (" " * 182)
+    )
+    header = header[: config["len"]].ljust(config["len"])
+    lines.append(header)
+
+    # --- DETAILS (02) ---
+    total_amount = 0.0
+    ref_count = int(ref_start)
 
     for idx, row in df.iterrows():
-        # EXACTLY like your original: use .get with defaults and never require column names.
-        importe = float(str(row.get("Importe", "0")).replace(",", "") or "0")
-        amount_cents = int(round(importe * 100))
-        total_importe_cents += amount_cents
+        seq = idx + 2
 
-        line = BBVAFixedGenerator.detail(
-            seq=idx + 2,
-            fecha=fecha,
-            importe=importe,
-            ref_num=ref_counter,
-            cliente_id=str(row.get("ID Cliente", "165197597")),  # same default you had
-            nombre_cliente=str(row.get("Nombre del cliente", "")),
-            referencia=str(row.get("Referencia", "")),
-            titular_servicio=str(row.get("Titular del servicio", TITULAR_DEFAULT)) or TITULAR_DEFAULT
-        )
-        lines.append(line)
-        ref_counter += 1
-
-    last_seq = len(df) + 1
-    lines.append(BBVAFixedGenerator.summary(
-        last_detail_seq=last_seq,
-        num_regs=len(df),
-        total_importe_cents=total_importe_cents,
-        bloque=bloque
-    ))
-
-    return write_fixed_file(txt_path, lines, final_crlf=True)
-
-
-# ---------- GUI ----------------------------------------------------------
-def main_gui():
-    root = tk.Tk()
-    root.title("BBVA Domiciliación – FIXED layout (300 bytes)")
-    root.geometry("560x320")
-
-    src_var, dst_var = tk.StringVar(), tk.StringVar()
-    fecha_var = tk.StringVar(value="")          # empty = today
-    ref_var = tk.StringVar(value="1204000")
-
-    # display-only (client should not edit these)
-    bloque_var = tk.StringVar(value=BLOQUE_DEFAULT)
-    rfc_var    = tk.StringVar(value=RFC_EMISOR_DEFAULT)
-    razon_var  = tk.StringVar(value=BUSINESS_EMISOR_STR)
-
-    def pick_input():
-        f = filedialog.askopenfilename(
-            title="Excel con datos",
-            filetypes=[("Excel", "*.xlsx *.xls *.xlsm"), ("CSV", "*.csv")]
-        )
-        if f:
-            src_var.set(f)
-            if not dst_var.get():
-                dst_var.set(str(Path(f).with_suffix("")) + "_BBVA_FIXED.txt")
-
-    def pick_output():
-        f = filedialog.asksaveasfilename(
-            title="Guardar TXT",
-            defaultextension=".txt",
-            filetypes=[("TXT", "*.txt")]
-        )
-        if f:
-            dst_var.set(f)
-
-    def run():
-        if not src_var.get():
-            messagebox.showerror("Error", "Selecciona el Excel/CSV de entrada.")
-            return
-        if not dst_var.get():
-            messagebox.showerror("Error", "Selecciona el destino TXT.")
-            return
         try:
-            out = generate_bbva_file(
-                src_var.get(),
-                dst_var.get(),
-                fecha_var.get(),
-                int(ref_var.get()),
-                bloque_var.get()
+            imp = float(str(row.get("Importe", 0)).replace(",", ""))
+        except Exception:
+            imp = 0.0
+        total_amount += imp
+
+        cta = str(row.get("Cuenta cargo", "")).strip()
+        tipo_cta = infer_tipo_cuenta(cta)
+
+        banco_raw = str(row.get("Banco", "000")).strip()
+        banco_digits = "".join(filter(str.isdigit, banco_raw))
+        banco_dest = banco_digits[-3:] if len(banco_digits) >= 3 else "000"
+
+        nombre = normalize_text(row.get("Nombre del cliente", ""), 40)
+        ref_alf = normalize_text(row.get("Referencia", ""), 40)
+        titular = normalize_text(row.get("Titular del servicio", "HAYCASH"), 40)
+        leyenda = ref_alf
+
+        imp_cents = int(round(imp * 100))
+        iva_cents = int(round(imp * 0.16 * 100))
+
+        detail = (
+            f"02{seq:07d}3001{imp_cents:015d}{fecha_proc}"
+            + (" " * 24)
+            + f"51{fecha_proc}{banco_dest}{tipo_cta}{format_account(cta, tipo_cta)}"
+            + f"{nombre}{ref_alf}{titular}"
+            + f"{iva_cents:015d}{ref_count:07d}{leyenda}00"
+            + (" " * 21)
+        )
+
+        detail = detail[: config["len"]].ljust(config["len"])
+        lines.append(detail)
+        ref_count += 1
+
+    # --- SUMMARY (09) ---
+    last_seq = len(lines) + 1
+    total_cents = int(round(total_amount * 100))
+
+    summary = (
+        f"09{last_seq:07d}30{h_block}{len(df):07d}{total_cents:018d}"
+        + (" " * 257)
+    )
+    summary = summary[: config["len"]].ljust(config["len"])
+    lines.append(summary)
+
+    # Write bytes as latin-1 + CRLF (same behavior)
+    out = bytearray()
+    for line in lines:
+        out += line.encode("latin-1", errors="replace")
+        out += b"\r\n"
+
+    used_cfg = "Template" if template_bytes else "Default"
+    msg = f"Generado: {len(lines)} registros.\nUsando Configuración: {used_cfg}\nLongitud registro: {config['len']} bytes"
+    return bytes(out), msg
+
+
+# =======================
+# STREAMLIT UI
+# =======================
+def main():
+    st.set_page_config(page_title="BBVA Generator - Template Clone Mode", layout="centered")
+    st.title("BBVA Generator - Template Clone Mode")
+
+    st.write("1) Sube el Excel/CSV con datos")
+    excel_file = st.file_uploader("Archivo Excel/CSV (Datos)", type=["xlsx", "xls", "xlsm", "csv"])
+
+    st.write("2) (Opcional) Sube archivo muestra/template (.exp) para copiar Header/RFC")
+    template_file = st.file_uploader("Archivo Template (.exp)", type=["exp"])
+
+    st.divider()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        fecha = st.text_input("Fecha (AAAAMMDD)", value=datetime.now().strftime("%Y%m%d"))
+    with col2:
+        ref_start = st.text_input("Ref. Numérica Inicial", value="1")
+    with col3:
+        block_num = st.text_input("Bloque", value="1")
+
+    st.divider()
+
+    if st.button("GENERAR ARCHIVO", type="primary", disabled=excel_file is None):
+        if excel_file is None:
+            st.error("Falta archivo Excel/CSV.")
+            return
+
+        try:
+            excel_bytes = excel_file.getvalue()
+            template_bytes = template_file.getvalue() if template_file else None
+
+            out_bytes, msg = generate_file_bytes(
+                excel_bytes=excel_bytes,
+                excel_name=excel_file.name,
+                template_bytes=template_bytes,
+                fecha_proc=fecha.strip(),
+                ref_start=ref_start.strip() or "1",
+                block_num=block_num.strip() or "1",
             )
-            messagebox.showinfo("Listo", f"Archivo generado:\n{out}")
+
+            st.success(msg)
+
+            out_name = f"{Path(excel_file.name).stem}_BBVA.txt"
+            st.download_button(
+                label="Descargar TXT",
+                data=out_bytes,
+                file_name=out_name,
+                mime="text/plain",
+            )
+
         except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-    pad = {"padx": 10, "pady": 5}
-    ttk.Label(root, text="BBVA Domiciliación – FIXED (300 bytes)", font=("Arial", 14, "bold")).pack(**pad)
-
-    ttk.Label(root, text="Excel/CSV entrada:").pack(anchor="w", **pad)
-    f1 = ttk.Frame(root); f1.pack(fill="x", **pad)
-    ttk.Entry(f1, textvariable=src_var, width=62).pack(side="left", padx=(0, 5))
-    ttk.Button(f1, text="...", width=3, command=pick_input).pack(side="left")
-
-    ttk.Label(root, text="TXT salida:").pack(anchor="w", **pad)
-    f2 = ttk.Frame(root); f2.pack(fill="x", **pad)
-    ttk.Entry(f2, textvariable=dst_var, width=62).pack(side="left", padx=(0, 5))
-    ttk.Button(f2, text="...", width=3, command=pick_output).pack(side="left")
-
-    cfg = ttk.Frame(root); cfg.pack(fill="x", **pad)
-
-    ttk.Label(cfg, text="Fecha (AAAAMMDD):").grid(row=0, column=0, sticky="w")
-    ttk.Entry(cfg, textvariable=fecha_var, width=12).grid(row=0, column=1, padx=6, sticky="w")
-
-    ttk.Label(cfg, text="Ref inicial:").grid(row=0, column=2, sticky="w", padx=(18, 6))
-    ttk.Entry(cfg, textvariable=ref_var, width=12).grid(row=0, column=3, sticky="w")
-
-    # read-only info (still shown, not editable)
-    ttk.Label(cfg, text="Bloque:").grid(row=1, column=0, sticky="w", pady=(8, 0))
-    ttk.Entry(cfg, textvariable=bloque_var, width=12, state="readonly").grid(row=1, column=1, padx=6, pady=(8, 0), sticky="w")
-
-    ttk.Label(cfg, text="RFC emisor:").grid(row=1, column=2, sticky="w", padx=(18, 6), pady=(8, 0))
-    ttk.Entry(cfg, textvariable=rfc_var, width=18, state="readonly").grid(row=1, column=3, pady=(8, 0), sticky="w")
-
-    ttk.Label(cfg, text="Razón social:").grid(row=2, column=0, sticky="w", pady=(8, 0))
-    ttk.Entry(cfg, textvariable=razon_var, width=48, state="readonly").grid(row=2, column=1, columnspan=3, padx=6, pady=(8, 0), sticky="w")
-
-    ttk.Button(root, text="Generar TXT", command=run).pack(pady=18)
-    root.mainloop()
+            st.exception(e)
 
 
 if __name__ == "__main__":
-    try:
-        import pandas as pd  # noqa
-    except ImportError:
-        print("Instala:  pip install pandas openpyxl")
-        sys.exit(1)
-    main_gui()
+    main()
