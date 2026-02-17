@@ -1,7 +1,6 @@
-# HayCash signature wrapper: consistent look + nav-only sidebar
+# HayCash signature wrapper: consistent look + nav-only sidebar + app controls in main
 import os
 import runpy
-import base64
 from pathlib import Path
 
 import streamlit as st
@@ -12,45 +11,30 @@ from simple_auth import require_shared_password
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 
+# Keep a handle to the REAL sidebar before monkeypatching
+_REAL_SIDEBAR = st.sidebar
 
-def _b64(path: Path) -> str:
-    return base64.b64encode(path.read_bytes()).decode("utf-8")
 
-
-def _inject_signature_css(logo_b64: str | None):
-    logo_css = ""
-    if logo_b64:
-        logo_css = f"""
-        .hc-topbar-logo {{
-          background-image: url("data:image/jpg;base64,{logo_b64}");
-          background-repeat: no-repeat;
-          background-position: right center;
-          background-size: contain;
-          width: 190px;
-          height: 44px;
-          flex: 0 0 190px;
-        }}
-        """
-
+def _inject_signature_css():
     st.markdown(
-        f"""
+        """
         <style>
-          /* Consistent page width and spacing */
-          .block-container {{
-            padding-top: 1.25rem;
+          /* Make the main content use the full width so header never clips */
+          .block-container {
+            padding-top: 1.0rem;
             padding-bottom: 2.5rem;
-            max-width: 1180px;
-          }}
+            max-width: 1400px;
+          }
 
           /* Hide Streamlit built-in multipage navigation (prevents duplicate menu) */
           nav[data-testid="stSidebarNav"],
           div[data-testid="stSidebarNav"],
           div[data-testid="stSidebarNavItems"],
-          ul[data-testid="stSidebarNavItems"] {{
+          ul[data-testid="stSidebarNavItems"] {
             display: none !important;
             height: 0 !important;
             overflow: hidden !important;
-          }}
+          }
 
           /* Hide sidebar toggle controls so they never appear in main UI */
           div[data-testid="collapsedControl"],
@@ -58,96 +42,79 @@ def _inject_signature_css(logo_b64: str | None):
           button[aria-label="Open sidebar"],
           button[aria-label="Close sidebar"],
           button[data-testid="stSidebarCollapseButton"],
-          button[data-testid="stSidebarExpandButton"] {{
+          button[data-testid="stSidebarExpandButton"] {
             display: none !important;
-          }}
+          }
 
           /* Sidebar look */
-          section[data-testid="stSidebar"] {{
+          section[data-testid="stSidebar"] {
             border-right: 1px solid rgba(17, 24, 39, 0.08);
-          }}
-          section[data-testid="stSidebar"] .block-container {{
-            padding-top: 1.25rem;
-          }}
+          }
+          section[data-testid="stSidebar"] .block-container {
+            padding-top: 1.0rem;
+          }
 
-          /* ===== Header: ONE unified blue bar (logo inside the same bar) ===== */
-          .hc-topbar {{
-            width: 100%;
+          /* Header bar */
+          .hc-topbar {
             background: #314270;
             border-radius: 14px;
             padding: 14px 18px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
             box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-          }}
-          .hc-topbar-left {{
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-          }}
-          .hc-topbar-title {{
+          }
+          .hc-title {
             margin: 0;
-            font-size: 1.45rem;
-            font-weight: 800;
-            color: #ffffff;
+            color: #fff;
+            font-size: 1.55rem;
+            font-weight: 900;
             line-height: 1.15;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }}
-          .hc-topbar-subtitle {{
-            margin: 0;
-            font-size: 0.95rem;
+          }
+          .hc-subtitle {
+            margin-top: 4px;
             color: rgba(255,255,255,0.85);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }}
-          {logo_css}
+            font-size: 0.98rem;
+          }
 
-          /* Accent line: yellow */
-          .hc-accent {{
+          /* Yellow accent line */
+          .hc-accent {
             height: 4px;
             width: 100%;
             border-radius: 999px;
             background: #FFBA00;
             margin: 10px 0 18px 0;
-          }}
+          }
 
           /* Professional buttons/inputs */
-          .stButton > button {{
+          .stButton > button {
             border-radius: 12px;
             height: 42px;
             padding: 0 14px;
             border: 1px solid rgba(49, 66, 112, 0.20);
-          }}
-          .stTextInput input, .stSelectbox div, .stTextArea textarea, .stNumberInput input {{
+          }
+          .stTextInput input, .stSelectbox div, .stTextArea textarea, .stNumberInput input {
             border-radius: 12px;
-          }}
+          }
 
           /* st.container(border=True) cards */
-          div[data-testid="stVerticalBlockBorderWrapper"] {{
+          div[data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 18px;
             border: 1px solid rgba(17, 24, 39, 0.08);
-          }}
+          }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def _safe_page_link(path: str, label: str):
+def _safe_page_link(page: str, label: str):
     try:
-        st.page_link(path, label=label)
+        st.page_link(page, label=label)
     except Exception:
         st.caption(label)
 
 
-def _sidebar_nav():
-    # Sidebar should still have navigation + title presence
-    with st.sidebar:
+def _render_sidebar_nav():
+    # Use REAL sidebar object so it won't be affected by monkeypatch later
+    with _REAL_SIDEBAR:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
             st.image(str(logo), use_container_width=True)
@@ -171,20 +138,29 @@ def _sidebar_nav():
             st.caption(f"Sesión: **{user}**")
 
 
-def _signature_header(title: str, subtitle: str):
-    st.markdown(
-        f"""
-        <div class="hc-topbar">
-          <div class="hc-topbar-left">
-            <div class="hc-topbar-title">{title}</div>
-            <div class="hc-topbar-subtitle">{subtitle}</div>
-          </div>
-          <div class="hc-topbar-logo"></div>
-        </div>
-        <div class="hc-accent"></div>
-        """,
-        unsafe_allow_html=True,
-    )
+def _render_header(title: str, subtitle: str):
+    # One unified bar: left text, right logo INSIDE bar, no clipping, logo sized correctly.
+    logo = ASSETS / "haycash_logo.jpg"
+
+    bar = st.container()
+    with bar:
+        left, right = st.columns([8, 2], vertical_alignment="center")
+        with left:
+            st.markdown(
+                f"""
+                <div class="hc-topbar">
+                  <div class="hc-title">{title}</div>
+                  <div class="hc-subtitle">{subtitle}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with right:
+            # Put logo inside same visual row; match height to bar
+            if logo.exists():
+                st.image(str(logo), use_container_width=True)
+
+    st.markdown("<div class='hc-accent'></div>", unsafe_allow_html=True)
 
 
 # -----------------------------
@@ -193,21 +169,23 @@ def _signature_header(title: str, subtitle: str):
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 require_shared_password()
 
-logo_file = ASSETS / "haycash_logo.jpg"
-logo_b64 = _b64(logo_file) if logo_file.exists() else None
+_inject_signature_css()
 
-_inject_signature_css(logo_b64)
-_sidebar_nav()
-_signature_header(
+# Sidebar nav MUST render before monkeypatch
+_render_sidebar_nav()
+
+# Header
+_render_header(
     title="Lector CSF",
     subtitle="Generar Excel desde CSF/CFDI (SAT).",
 )
 
 # -----------------------------
-# KEY FIX: Move app controls out of sidebar into main page (UI-only)
-# DO NOT add wrapper headings like "Entradas" to avoid duplicates.
+# Move app's st.sidebar widgets into MAIN page (UI-only)
 # -----------------------------
 _controls_container = st.container(border=True)
+
+# Redirect st.sidebar.* calls for the APP ONLY (after nav is built)
 _stmod.sidebar = _controls_container
 
 # -----------------------------
