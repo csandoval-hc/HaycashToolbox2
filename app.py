@@ -1,10 +1,11 @@
 import base64
+import time
 from pathlib import Path
 import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- 1. CONFIGURATION: PREPARE THE CANVAS ---
+# --- 1. CORE CONFIGURATION (MUST BE FIRST) ---
 st.set_page_config(
     page_title="HayCash Terminal",
     page_icon="💳",
@@ -17,18 +18,39 @@ require_shared_password()
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 
-# --- 2. ASSET LOADING ---
+# --- 2. ASSET & LOGIC LOADING ---
 def b64(path: Path) -> str:
     if not path.exists(): return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
 def load_registry():
-    cfg_path = ROOT / "apps.yaml"
-    if not cfg_path.exists(): return []
-    cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-    return cfg.get("apps", [])
+    try:
+        cfg_path = ROOT / "apps.yaml"
+        if not cfg_path.exists(): return []
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        return cfg.get("apps", [])
+    except Exception as e:
+        st.error(f"System Registry Error: {e}")
+        return []
 
-# --- 3. NAVIGATION REGISTRY ---
+def safe_navigate(page_path, app_name):
+    """
+    Handles navigation with a visual loading indicator to prevent
+    the 'White Screen of Death' feeling.
+    """
+    try:
+        # Visual feedback for the user
+        with st.spinner(f"Establishing secure connection to {app_name}..."):
+            time.sleep(0.5)  # Brief pause to let the user see the interaction
+            st.switch_page(page_path)
+    except Exception as e:
+        st.error(f"Navigation Error: Could not load {app_name}. Path: {page_path}")
+
+# --- 3. LOAD DATA ---
+apps = load_registry()
+logo_b64 = b64(ASSETS / "haycash_logo.jpg")
+
+# --- 4. NAVIGATION MAP ---
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -39,10 +61,7 @@ PAGE_BY_ID = {
     "lector_contrato": "pages/07_lector_contrato.py",
 }
 
-apps = load_registry()
-logo_b64 = b64(ASSETS / "haycash_logo.jpg")
-
-# --- 4. THE "AMEX" STYLE ENGINE ---
+# --- 5. THE "AMEX OBSIDIAN" ENGINE (CSS) ---
 st.markdown(f"""
     <style>
         /* IMPORT PREMIUM FONTS */
@@ -63,7 +82,7 @@ st.markdown(f"""
             background-attachment: fixed;
         }}
 
-        /* HIDE STREAMLIT CHROME */
+        /* HIDE STREAMLIT CHROME (BUT KEEP CONTENT VISIBLE) */
         [data-testid="stSidebarNav"], 
         [data-testid="collapsedControl"],
         header[data-testid="stHeader"] {{
@@ -88,7 +107,7 @@ st.markdown(f"""
         }}
         .sidebar-logo {{
             width: 100%;
-            max-width: 220px; /* Big and Bold */
+            max-width: 220px;
             height: auto;
             filter: drop-shadow(0 0 10px rgba(255,255,255,0.05));
         }}
@@ -104,6 +123,7 @@ st.markdown(f"""
             margin-bottom: 10px;
         }}
         
+        /* Sidebar Button Styling */
         div.stButton > button {{
             background: transparent !important;
             border: 1px solid transparent !important;
@@ -119,13 +139,11 @@ st.markdown(f"""
             display: flex;
             align-items: center;
         }}
-        
-        /* HOVER STATE FOR SIDEBAR */
         div.stButton > button:hover {{
             background: #11151E !important;
             color: #FFFFFF !important;
             border-left: 3px solid #FFBA00 !important;
-            padding-left: 22px !important; /* Compensate for border */
+            padding-left: 22px !important;
         }}
 
         /* --- HERO SECTION --- */
@@ -135,7 +153,7 @@ st.markdown(f"""
         }}
         
         .dashboard-header {{
-            margin-bottom: 60px;
+            margin-bottom: 50px;
         }}
         .welcome-eyebrow {{
             color: #FFBA00;
@@ -161,12 +179,6 @@ st.markdown(f"""
         }}
 
         /* --- THE CARD GRID --- */
-        .grid-container {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 25px;
-        }}
-
         .fin-card {{
             background: #11151E;
             border: 1px solid #1E232F;
@@ -178,10 +190,9 @@ st.markdown(f"""
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            overflow: hidden;
         }}
 
-        /* PREMIUM HOVER GLOW */
+        /* Glow Effect on Hover */
         .fin-card::before {{
             content: "";
             position: absolute;
@@ -221,7 +232,6 @@ st.markdown(f"""
             font-size: 1.25rem;
             font-weight: 700;
             margin-bottom: 8px;
-            letter-spacing: -0.01em;
         }}
 
         .fin-card-desc {{
@@ -232,7 +242,7 @@ st.markdown(f"""
             flex-grow: 1;
         }}
 
-        /* BUTTON OVERRIDES FOR GRID */
+        /* Hide Default Container Borders for cleaner look */
         div[data-testid="stVerticalBlockBorderWrapper"] {{
              border: none !important;
              background: transparent !important;
@@ -250,22 +260,23 @@ st.markdown(f"""
         }}
         
         .system-status {{
-            position: absolute;
-            top: 2rem;
-            right: 2rem;
+            float: right;
             color: #64748B;
             font-size: 0.8rem;
             font-weight: 600;
             display: flex;
             align-items: center;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 16px;
+            border-radius: 20px;
         }}
 
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. SIDEBAR CONSTRUCTION ---
+# --- 6. SIDEBAR CONSTRUCTION ---
 with st.sidebar:
-    # 5.1 THE LOGO (Large & Prominent)
+    # LOGO
     if logo_b64:
         st.markdown(f"""
             <div class="sidebar-logo-container">
@@ -273,20 +284,17 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
     
-    # 5.2 NAVIGATION LINKS
+    # NAVIGATION
     st.markdown('<div class="nav-header">PLATAFORMA</div>', unsafe_allow_html=True)
-    
-    # Home is active by default logic visually (handled by Streamlit routing)
-    st.button("🏠  Dashboard", key="nav_home", disabled=True) 
+    st.button("🏠  Dashboard", key="nav_home", disabled=True)
 
     st.markdown('<div class="nav-header" style="margin-top: 20px;">HERRAMIENTAS</div>', unsafe_allow_html=True)
 
-    # Render Nav Items
+    # Dynamic Links
     for app_id, page in PAGE_BY_ID.items():
-        # Get clean name
         raw_name = next((a.get("name") for a in apps if a.get("id") == app_id), app_id)
         
-        # Assign premium icons
+        # Icons
         icon = "●"
         if "CSF" in raw_name: icon = "🧾"
         elif "BBVA" in raw_name: icon = "🏦"
@@ -296,28 +304,27 @@ with st.sidebar:
         elif "Consejo" in raw_name: icon = "📈"
         elif "Contrato" in raw_name: icon = "📝"
         
-        # Sidebar Button
         if st.button(f"{icon}  {raw_name}", key=f"side_{app_id}"):
-            st.switch_page(page)
+            safe_navigate(page, raw_name)
 
-    # 5.3 BOTTOM META
+    # Footer
     st.markdown("""
         <div style="position: fixed; bottom: 20px; left: 20px; color: #334155; font-size: 0.7rem;">
-            HayCash Secure Terminal<br>v2.4.0 • Encrypted
+            HayCash Secure Terminal<br>v2.5.0 • Live
         </div>
     """, unsafe_allow_html=True)
 
 
-# --- 6. MAIN DASHBOARD CONTENT ---
+# --- 7. MAIN DASHBOARD CONTENT ---
 
-# 6.1 SYSTEM STATUS (Top Right)
+# Status Indicator
 st.markdown("""
     <div class="system-status">
         <span class="status-dot"></span> SYSTEM OPERATIONAL
     </div>
 """, unsafe_allow_html=True)
 
-# 6.2 HERO HEADER
+# Header
 st.markdown("""
     <div class="dashboard-header">
         <div class="welcome-eyebrow">HAYCASH TOOLBOX</div>
@@ -328,14 +335,14 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# 6.3 APP GRID (The "Vault" Look)
+# Grid Layout
 cols = st.columns(3)
 
 for i, a in enumerate(apps):
     col = cols[i % 3]
     
     name = a.get("name", "Module")
-    # Icon Selection
+    # Icon Logic
     icon = "⚡"
     if "CSF" in name: icon = "🧾"
     elif "BBVA" in name: icon = "🏦"
@@ -346,7 +353,7 @@ for i, a in enumerate(apps):
     elif "Contrato" in name: icon = "📝"
 
     with col:
-        # We render the card visuals in HTML
+        # Visual Card
         st.markdown(f"""
             <div class="fin-card">
                 <div class="icon-box">{icon}</div>
@@ -357,13 +364,11 @@ for i, a in enumerate(apps):
             </div>
         """, unsafe_allow_html=True)
         
-        # The Action Button (Hidden visually but clickable, or styled to match)
-        # To make it feel premium, we use a full-width button right below the card visual
-        # In this layout, placing the button cleanly is key.
+        # Action Button (Matches card width)
         if st.button(f"INICIAR {name.upper()}", key=f"dash_{a.get('id')}", use_container_width=True):
             target = PAGE_BY_ID.get(a.get("id"))
             if target:
-                st.switch_page(target)
+                safe_navigate(target, name)
         
-        # Spacer
+        # Spacing
         st.markdown("<div style='margin-bottom: 30px'></div>", unsafe_allow_html=True)
