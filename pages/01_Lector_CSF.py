@@ -8,12 +8,13 @@ import streamlit as st
 from simple_auth import require_shared_password
 
 
-# -----------------------------
-# Signature Look (Step 2)
-# -----------------------------
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 
+
+# -----------------------------
+# Signature Look (Step 2)
+# -----------------------------
 def _inject_signature_css():
     st.markdown(
         """
@@ -96,6 +97,14 @@ def _inject_signature_css():
     )
 
 
+def _safe_page_link(path: str, label: str):
+    # Prevent StreamlitPageNotFoundError from crashing the app
+    try:
+        st.page_link(path, label=label)
+    except Exception:
+        st.caption(label)  # show label but don't crash
+
+
 def _sidebar_nav():
     # Navigation-only sidebar; no tool controls.
     with st.sidebar:
@@ -107,15 +116,14 @@ def _sidebar_nav():
         st.caption("Navegación")
         st.divider()
 
-        # Use Streamlit multipage links (stable and professional)
-        st.page_link("app.py", label="🧰 Inicio")
-        st.page_link("pages/01_Lector_CSF.py", label="🧾 Lector CSF")
-        st.page_link("pages/02_CSV_a_TXT_BBVA.py", label="🏦 CSV a TXT BBVA")
-        st.page_link("pages/03_Reporte_Interactivo_de_Leads.py", label="📊 Reporte Interactivo de Leads")
-        st.page_link("pages/04_Factoraje.py", label="💳 Factoraje")
-        st.page_link("pages/05_Lector_edocot.py", label="📄 Lector Edocot")
-        st.page_link("pages/06_reporte_consejo.py", label="📈 Reporte Consejo")
-        st.page_link("pages/07_lector_contrato.py", label="📝 Lector Contrato")
+        _safe_page_link("app.py", "🧰 Inicio")
+        _safe_page_link("pages/01_Lector_CSF.py", "🧾 Lector CSF")
+        _safe_page_link("pages/02_CSV_a_TXT_BBVA.py", "🏦 CSV a TXT BBVA")
+        _safe_page_link("pages/03_Reporte_Interactivo_de_Leads.py", "📊 Reporte Interactivo de Leads")
+        _safe_page_link("pages/04_Factoraje.py", "💳 Factoraje")
+        _safe_page_link("pages/05_Lector_edocat.py", "📄 Lector Edocot")  # FIXED filename
+        _safe_page_link("pages/06_reporte_consejo.py", "📈 Reporte Consejo")
+        _safe_page_link("pages/07_lector_contrato.py", "📝 Lector Contrato")
 
         st.divider()
         if st.session_state.get("auth_ok"):
@@ -124,7 +132,6 @@ def _sidebar_nav():
 
 
 def _signature_header(title: str, subtitle: str):
-    # Header in main page only
     st.markdown(
         f"""
         <div class="hc-header">
@@ -150,9 +157,8 @@ _inject_signature_css()
 _sidebar_nav()
 _signature_header(
     title="Lector CSF",
-    subtitle="Herramienta HayCash con estilo unificado (azul #314270, amarillo #FFBA00).",
+    subtitle="Generar Excel desde CSF/CFDI (SAT).",
 )
-
 
 # -----------------------------
 # Launch original app (no logic changes)
