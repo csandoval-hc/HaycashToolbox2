@@ -7,7 +7,7 @@ import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- 0. SAFETY LOCK ---
+# --- 0. SAFETY LOCK (Crash Prevention) ---
 try:
     PROJECT_ROOT = Path(__file__).resolve().parent
     if os.getcwd() != str(PROJECT_ROOT):
@@ -17,19 +17,19 @@ try:
 except Exception:
     pass
 
-# --- 1. CONFIG ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="HayCash Terminal",
-    page_icon="💳",
+    page_title="HayCash ToolBox",
+    page_icon="💎",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed" 
 )
 
 require_shared_password()
 
 ASSETS = PROJECT_ROOT / "assets"
 
-# --- 2. LOGIC ---
+# --- 2. HELPERS ---
 def b64(path: Path) -> str:
     if not path.exists(): return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
@@ -45,15 +45,15 @@ def load_registry():
 
 def safe_navigate(page_path, app_name):
     try:
-        with st.spinner(f"AUTHENTICATING {app_name.upper()}..."):
-            time.sleep(0.3)
+        with st.spinner(f"Accediendo a {app_name}..."):
+            time.sleep(0.2)
         if os.getcwd() != str(PROJECT_ROOT):
             os.chdir(PROJECT_ROOT)
         st.switch_page(page_path)
     except Exception as e:
-        st.error(f"Handshake failed: {e}")
+        st.error(f"Error de navegación: {e}")
 
-# --- 3. DATA ---
+# --- 3. LOAD ASSETS ---
 apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
@@ -68,239 +68,195 @@ PAGE_BY_ID = {
     "lector_contrato": "pages/07_lector_contrato.py",
 }
 
-# --- 5. THE "CITADEL" DESIGN SYSTEM ---
+# --- 5. THE "EXECUTIVE GLASS" DESIGN SYSTEM ---
 st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        /* FONT IMPORT */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         
-        /* BASE */
+        /* RESET & BACKGROUND */
         html, body, [class*="css"] {{
             font-family: 'Inter', sans-serif;
-            background-color: #050505;
-            color: #E2E8F0;
+            background-color: #050505; 
+            color: #ffffff;
         }}
         
-        /* HIDE STREAMLIT UI */
-        [data-testid="stSidebarNav"], [data-testid="collapsedControl"], header[data-testid="stHeader"] {{
-            display: none !important;
-        }}
-
-        /* BACKGROUND */
         .stApp {{
-            background: 
-                radial-gradient(circle at 15% 50%, rgba(49, 66, 112, 0.12), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(255, 186, 0, 0.08), transparent 25%);
-            background-color: #080a0f;
+            background: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 60%);
+            background-attachment: fixed;
         }}
 
-        /* CONTAINER FIX */
+        /* KILL THE SIDEBAR COMPLETELY */
+        [data-testid="stSidebar"], 
+        [data-testid="collapsedControl"], 
+        section[data-testid="stSidebar"] {{
+            display: none !important;
+            width: 0px !important;
+        }}
+        
+        /* HEADER & PADDING */
         .block-container {{
-            padding-top: 0 !important;
+            padding-top: 3rem !important;
             padding-bottom: 5rem !important;
-            max-width: 1400px !important;
+            max-width: 1300px !important;
+        }}
+        header[data-testid="stHeader"] {{
+            background: transparent !important;
+            backdrop-filter: none !important;
         }}
 
-        /* --- 1. TOP NAVIGATION BAR --- */
-        .top-nav {{
+        /* --- HEADER STYLES --- */
+        .hc-header {{
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 1.5rem 0;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            margin-bottom: 4rem;
+            justify-content: flex-start;
+            gap: 25px;
+            margin-bottom: 60px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }}
-        .nav-left {{
-            display: flex;
-            align-items: center;
-            gap: 15px;
+        
+        .hc-logo {{
+            width: 80px;
+            height: 80px;
+            border-radius: 18px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
         }}
-        .nav-logo {{
-            height: 32px;
-            width: auto;
-            border-radius: 6px;
-        }}
-        .nav-title {{
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: #fff;
-            letter-spacing: -0.02em;
-        }}
-        .status-badge {{
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: #10B981;
-            background: rgba(16, 185, 129, 0.1);
-            padding: 6px 12px;
-            border-radius: 100px;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-        .status-dot {{
-            width: 6px; height: 6px;
-            background: #10B981;
-            border-radius: 50%;
-            box-shadow: 0 0 8px #10B981;
-        }}
-
-        /* --- 2. HERO SECTION --- */
-        .hero-section {{
-            margin-bottom: 3.5rem;
-        }}
-        .hero-eyebrow {{
-            color: #FFBA00;
-            font-size: 0.8rem;
-            font-weight: 700;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            margin-bottom: 1rem;
-        }}
-        .hero-title {{
-            font-size: 3.5rem;
+        
+        .hc-title-group h1 {{
+            font-size: 3rem;
             font-weight: 800;
-            color: white;
-            line-height: 1.1;
-            letter-spacing: -0.03em;
-            margin-bottom: 1rem;
-            background: linear-gradient(to right, #fff, #94a3b8);
+            margin: 0;
+            line-height: 1;
+            background: linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
         }}
-        .hero-sub {{
-            font-size: 1.1rem;
+        
+        .hc-title-group p {{
             color: #64748B;
-            max-width: 600px;
-            line-height: 1.6;
+            font-size: 1.1rem;
+            margin: 8px 0 0 0;
+            font-weight: 400;
         }}
 
-        /* --- 3. CARD GRID SYSTEM --- */
-        /* Card Container */
+        /* --- GLASS CARDS --- */
+        /* This removes the Streamlit container default styling */
         div[data-testid="stVerticalBlockBorderWrapper"] {{
             border: none !important;
             background: transparent !important;
+            padding: 0 !important;
         }}
-        
-        .module-card {{
-            background: rgba(255, 255, 255, 0.03);
+
+        .glass-card {{
+            background: rgba(30, 41, 59, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            padding: 24px;
-            height: 240px; /* Fixed height for uniformity */
+            border-radius: 20px;
+            padding: 30px 25px;
+            height: 260px;
             position: relative;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }}
-        
-        .module-card:hover {{
-            background: rgba(255, 255, 255, 0.05);
-            border-color: #FFBA00;
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }}
 
-        .card-icon {{
-            font-size: 24px;
-            background: rgba(49, 66, 112, 0.3);
-            width: 48px; 
-            height: 48px;
-            display: flex; 
-            align-items: center; 
+        .glass-card:hover {{
+            transform: translateY(-8px);
+            border-color: rgba(255, 186, 0, 0.5); /* Gold border on hover */
+            background: rgba(30, 41, 59, 0.7);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }}
+
+        .icon-circle {{
+            width: 54px;
+            height: 54px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
             justify-content: center;
-            border-radius: 10px;
-            border: 1px solid rgba(49, 66, 112, 0.5);
-            margin-bottom: 1rem;
-            color: #fff;
+            font-size: 26px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #FFBA00;
         }}
 
         .card-title {{
-            color: #fff;
-            font-size: 1.1rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
-        }}
-        
-        .card-desc {{
-            color: #94a3b8;
-            font-size: 0.85rem;
-            line-height: 1.5;
+            color: #fff;
+            margin-bottom: 8px;
         }}
 
-        /* --- 4. BUTTON PHYSICS (THE FIX) --- */
-        /* Target the specific buttons inside columns */
+        .card-sub {{
+            font-size: 0.9rem;
+            color: #94A3B8;
+            line-height: 1.4;
+        }}
+
+        /* --- THE BUTTON (FIXED) --- */
+        /* We force the Streamlit button to fill the bottom of the card area visually */
+        
+        .stButton {{
+            width: 100%;
+            margin-top: 15px;
+        }}
+        
         div.stButton > button {{
             width: 100%;
-            background-color: transparent !important;
-            border: 1px solid #334155 !important;
-            color: #94a3b8 !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            font-size: 0.8rem !important;
-            text-transform: uppercase !important;
-            letter-spacing: 1px !important;
-            padding: 0.6rem 1rem !important;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            background: #FFBA00 !important;
+            border: none !important;
+            color: #020617 !important;
+            font-weight: 800 !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 12px 0 !important;
+            border-radius: 10px !important;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 186, 0, 0.2);
         }}
-        
-        /* Hover State - High Contrast */
+
         div.stButton > button:hover {{
-            background-color: #FFBA00 !important;
-            border-color: #FFBA00 !important;
-            color: #000000 !important; /* Dark text on gold background */
-            box-shadow: 0 0 15px rgba(255, 186, 0, 0.4) !important;
+            background: #FFFFFF !important;
+            color: #000000 !important;
             transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
         }}
-        
-        /* Active/Focus State */
+
         div.stButton > button:active {{
-            background-color: #e6a700 !important;
             transform: scale(0.98);
         }}
 
     </style>
 """, unsafe_allow_html=True)
 
+# --- 6. RENDER HEADER ---
+logo_html = f'<img src="data:image/jpg;base64,{logo_b64}" class="hc-logo">' if logo_b64 else ""
 
-# --- 6. RENDER UI ---
-
-# 6.1 TOP BAR (Fixed Navigation Look)
 st.markdown(f"""
-    <div class="top-nav">
-        <div class="nav-left">
-            <img src="data:image/jpg;base64,{logo_b64}" class="nav-logo">
-            <div class="nav-title">HayCash Terminal</div>
-        </div>
-        <div class="status-badge">
-            <div class="status-dot"></div>
-            SYSTEM SECURE
+    <div class="hc-header">
+        {logo_html}
+        <div class="hc-title-group">
+            <h1>HayCash ToolBox</h1>
+            <p>Plataforma de Operaciones Financieras</p>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# 6.2 HERO SECTION
-st.markdown("""
-    <div class="hero-section">
-        <div class="hero-eyebrow">Enterprise Workspace</div>
-        <div class="hero-title">Financial Operations<br>Command Center</div>
-        <div class="hero-sub">
-            Centralized access to HayCash analytic engines. Select a module below to initialize secure environment.
-        </div>
-    </div>
-""", unsafe_allow_html=True)
-
-# 6.3 MODULE GRID
-cols = st.columns(4) # Using 4 columns for a wider, cleaner spread
+# --- 7. RENDER GRID ---
+cols = st.columns(3) # 3 Column Layout is standard and professional
 
 for i, a in enumerate(apps):
-    col = cols[i % 4]
+    col = cols[i % 3]
     
     name = a.get("name", "Module")
-    
-    # Mapped Icons
+    # Clean Icon Selection
     icon = "⚡"
     if "CSF" in name: icon = "🧾"
     elif "BBVA" in name: icon = "🏦"
@@ -311,24 +267,27 @@ for i, a in enumerate(apps):
     elif "Contrato" in name: icon = "📝"
 
     with col:
-        # Card Visuals
+        # 1. The Glass Visuals
         st.markdown(f"""
-            <div class="module-card">
+            <div class="glass-card">
                 <div>
-                    <div class="card-icon">{icon}</div>
+                    <div class="icon-circle">{icon}</div>
                     <div class="card-title">{name}</div>
-                    <div class="card-desc">Initialize {name.lower()} module protocol.</div>
+                    <div class="card-sub">Módulo de {name.lower()}.</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # Action Button (Placed physically outside the HTML card but visually aligned)
-        st.markdown("<div style='margin-top: -50px; padding: 0 20px; position: relative; z-index: 2;'>", unsafe_allow_html=True)
-        if st.button("LAUNCH", key=f"launch_{a.get('id')}"):
+        # 2. The Button (Positioned via margin-top negative to sit inside/below card)
+        # We move it up visually to dock it with the card
+        st.markdown("<div style='margin-top: -65px; padding: 0 25px; position: relative; z-index: 99;'>", unsafe_allow_html=True)
+        
+        if st.button("ABRIR", key=f"btn_{a.get('id')}"):
             target = PAGE_BY_ID.get(a.get("id"))
             if target:
                 safe_navigate(target, name)
+                
         st.markdown("</div>", unsafe_allow_html=True)
         
-        # Spacer
-        st.markdown("<div style='margin-bottom: 2rem'></div>", unsafe_allow_html=True)
+        # 3. Spacer for grid
+        st.markdown("<div style='margin-bottom: 30px'></div>", unsafe_allow_html=True)
