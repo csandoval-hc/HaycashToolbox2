@@ -1,7 +1,28 @@
+# -----------------------------
+# Bootstrap for Streamlit Cloud multipage execution
+# - Ensures local module imports work (leads_logic)
+# - Ensures relative paths like Path("www") resolve correctly
+# -----------------------------
 import os
+import sys
+from pathlib import Path
+
+_APP_DIR = Path(__file__).resolve().parent
+
+# Ensure the app directory is first on sys.path so "import leads_logic" works
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
+
+# Ensure relative paths (e.g., Path("www")) behave like original standalone execution
+try:
+    os.chdir(str(_APP_DIR))
+except Exception:
+    # If chdir fails for any reason, proceed; imports will still work
+    pass
+
+
 import shutil
 import subprocess
-from pathlib import Path
 from datetime import date
 
 import pandas as pd
@@ -137,7 +158,12 @@ snapshot = build_snapshot_view(raw_snapshot)
 
 # apply RFC blocklist (same intent as Shiny)
 if not snapshot.empty and "rfc" in snapshot.columns and blocked_rfcs:
-    snapshot = snapshot[~snapshot["rfc"].astype(str).map(lambda x: "".join(ch for ch in str(x).upper() if ch.isalnum())).isin(blocked_rfcs)].copy()
+    snapshot = snapshot[
+        ~snapshot["rfc"]
+        .astype(str)
+        .map(lambda x: "".join(ch for ch in str(x).upper() if ch.isalnum()))
+        .isin(blocked_rfcs)
+    ].copy()
 
 reviewed_tbl = review_store.read_or_empty()
 enriched_df = enrich(snapshot, reviewed_tbl)
@@ -191,7 +217,9 @@ k1.metric("Pendientes", kpi["pending"])
 k2.metric("Revisados", kpi["reviewed"])
 k3.metric("% Revisados", kpi["conv"])
 
-tab_pending, tab_reviewed, tab_downloads, tab_admin = st.tabs(["Pendientes", "Revisados", "Descargas", "Admin"])
+tab_pending, tab_reviewed, tab_downloads, tab_admin = st.tabs(
+    ["Pendientes", "Revisados", "Descargas", "Admin"]
+)
 
 # Helper: render selectable table
 def selectable_table(df: pd.DataFrame, key: str) -> tuple[pd.DataFrame, list[str]]:
@@ -214,14 +242,18 @@ def selectable_table(df: pd.DataFrame, key: str) -> tuple[pd.DataFrame, list[str
         disabled=[c for c in work.columns if c != sel_col],
     )
     selected = edited[edited[sel_col] == True]
-    selected_ids = selected["Lead_id"].astype(str).tolist() if "Lead_id" in selected.columns else []
+    selected_ids = (
+        selected["Lead_id"].astype(str).tolist() if "Lead_id" in selected.columns else []
+    )
     # return view without selector for downstream
     return edited.drop(columns=[sel_col]), selected_ids
 
 
 with tab_pending:
     pending = enriched_df[enriched_df["revisado"] == 0].copy()
-    pending = apply_filters(pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel)
+    pending = apply_filters(
+        pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel
+    )
 
     st.subheader("Pendientes")
     view_df, selected_ids = selectable_table(pending, key="pending_tbl")
@@ -263,7 +295,9 @@ with tab_downloads:
 
     # Mirror Shiny: download visible data from pending module + reviewed file
     pending = enriched_df[enriched_df["revisado"] == 0].copy()
-    pending = apply_filters(pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel)
+    pending = apply_filters(
+        pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel
+    )
 
     reviewed = enriched_df[enriched_df["revisado"] == 1].copy()
     reviewed = apply_filters(reviewed, reviewed=True, created_range=None, statuses=status_sel)
@@ -303,7 +337,10 @@ with tab_admin:
 
     # reset reviewed
     admin_user = str(st.session_state.get("auth_user") or "").lower()
-    is_admin = admin_user in {"doc", "enrique"} or (os.getenv("ADMIN_USERS", "") != "" and admin_user in {u.strip().lower() for u in os.getenv("ADMIN_USERS","").split(",")})
+    is_admin = admin_user in {"doc", "enrique"} or (
+        os.getenv("ADMIN_USERS", "") != ""
+        and admin_user in {u.strip().lower() for u in os.getenv("ADMIN_USERS", "").split(",")}
+    )
 
     if not is_admin:
         st.info("Modo admin restringido.")
