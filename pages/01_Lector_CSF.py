@@ -4,6 +4,7 @@ import runpy
 import base64
 from pathlib import Path
 import streamlit as st
+import streamlit as _stmod  # Needed for the monkeypatch
 
 from simple_auth import require_shared_password
 
@@ -38,7 +39,7 @@ def _inject_signature_css(logo_b64: str | None):
             max-width: 98% !important;
           }}
 
-          /* Sidebar UI Fixes */
+          /* Sidebar UI Fixes - Keeping only your Nav here */
           [data-testid="stSidebarNav"] {{ display: none !important; }}
           
           section[data-testid="stSidebar"] {{
@@ -78,9 +79,13 @@ def _inject_signature_css(logo_b64: str | None):
             margin-bottom: 2rem;
           }}
 
-          /* Main App Container Styling */
-          div[data-testid="stVerticalBlockBorderWrapper"] {{
-            border-radius: 15px !important;
+          /* Professional container for the controls moved from sidebar */
+          .control-card {{
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 2rem;
           }}
         </style>
         """,
@@ -88,6 +93,7 @@ def _inject_signature_css(logo_b64: str | None):
     )
 
 def _sidebar_nav():
+    # This remains in the physical sidebar
     with st.sidebar:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
@@ -138,12 +144,21 @@ logo_file = ASSETS / "haycash_logo.jpg"
 logo_b64 = _b64(logo_file) if logo_file.exists() else None
 _inject_signature_css(logo_b64)
 
-# Render Sidebar & Header
+# 1. Render Navigation in the actual Sidebar
 _sidebar_nav()
+
+# 2. Render Header on the Main Page
 _signature_header(
     title="Lector CSF",
     subtitle="Generar Excel desde CSF/CFDI (SAT).",
 )
+
+# 3. Create a card for the controls and redirect st.sidebar here
+with st.container(border=True):
+    control_space = st.container()
+
+# MONKEYPATCH: Any call to st.sidebar in the sub-app now goes into 'control_space'
+_stmod.sidebar = control_space
 
 # --- LAUNCH INTERNAL APP ---
 APP_PATH = ROOT / "apps" / "cdf_isaac" / "app_isaac.py"
