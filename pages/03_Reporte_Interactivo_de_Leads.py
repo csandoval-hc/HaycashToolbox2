@@ -8,7 +8,9 @@ import streamlit as _stmod  # Needed for the monkeypatch
 
 from simple_auth import require_shared_password
 
+# --- 1. SAVE THE SAFE LOCATION (CRITICAL FIX) ---
 ROOT = Path(__file__).resolve().parents[1]
+SAFE_ROOT = ROOT
 ASSETS = ROOT / "assets"
 
 def _b64(path: Path) -> str:
@@ -150,7 +152,13 @@ with st.container(border=True):
 # Redirect sub-app's sidebar calls (filters, date ranges, etc.) to the main page card
 _stmod.sidebar = control_space
 
-# --- LAUNCH INTERNAL APP ---
-APP_DIR = ROOT / "apps" / "analisis_leads"
-os.chdir(APP_DIR)
-runpy.run_path(str(APP_DIR / "streamlit_app.py"), run_name="__main__")
+# --- LAUNCH INTERNAL APP WITH CRASH PROTECTION ---
+try:
+    APP_DIR = ROOT / "apps" / "analisis_leads"
+    os.chdir(APP_DIR)
+    runpy.run_path(str(APP_DIR / "streamlit_app.py"), run_name="__main__")
+except Exception as e:
+    st.error(f"Application Error: {e}")
+finally:
+    # CRITICAL: Always return to the safe root folder.
+    os.chdir(SAFE_ROOT)
