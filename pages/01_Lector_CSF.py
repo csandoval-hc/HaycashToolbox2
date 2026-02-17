@@ -1,12 +1,12 @@
-# HayCash signature wrapper: consistent look + navigation-only sidebar
+# HayCash signature wrapper: consistent look + nav-only sidebar
 import os
 import runpy
 from pathlib import Path
 
 import streamlit as st
+import streamlit as _stmod  # used for monkeypatching sidebar output
 
 from simple_auth import require_shared_password
-
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
@@ -23,9 +23,15 @@ def _inject_signature_css():
             max-width: 1180px;
           }
 
-          /* Hide Streamlit's built-in multipage navigation (prevents duplicate menu) */
-          nav[data-testid="stSidebarNav"] {
+          /* Hide Streamlit built-in multipage navigation (prevents duplicate menu)
+             Different Streamlit builds use different DOM shapes, so we hide multiple. */
+          nav[data-testid="stSidebarNav"],
+          div[data-testid="stSidebarNav"],
+          div[data-testid="stSidebarNavItems"],
+          ul[data-testid="stSidebarNavItems"] {
             display: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
 
           /* Hide sidebar toggle controls so they never appear in main UI */
@@ -38,7 +44,7 @@ def _inject_signature_css():
             display: none !important;
           }
 
-          /* Sidebar look (navigation only) */
+          /* Sidebar look */
           section[data-testid="stSidebar"] {
             border-right: 1px solid rgba(17, 24, 39, 0.08);
           }
@@ -69,11 +75,13 @@ def _inject_signature_css():
             opacity: 0.8;
             color: #111827;
           }
+
+          /* Accent line: BLUE ONLY (per your request) */
           .hc-accent {
             height: 4px;
             width: 100%;
             border-radius: 999px;
-            background: linear-gradient(90deg, #314270 0%, #314270 68%, #FFBA00 100%);
+            background: #314270;
             margin: 14px 0 18px 0;
           }
 
@@ -103,11 +111,12 @@ def _safe_page_link(path: str, label: str):
     try:
         st.page_link(path, label=label)
     except Exception:
+        # don't crash if a page is missing
         st.caption(label)
 
 
 def _sidebar_nav():
-    # Navigation-only sidebar; no tool controls.
+    # Sidebar must be NAVIGATION ONLY
     with st.sidebar:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
@@ -147,6 +156,9 @@ def _signature_header(title: str, subtitle: str):
     )
 
 
+# -----------------------------
+# Page setup
+# -----------------------------
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 require_shared_password()
 
@@ -157,7 +169,20 @@ _signature_header(
     subtitle="Generar Excel desde CSF/CFDI (SAT).",
 )
 
+# -----------------------------
+# KEY FIX: Move sidebar controls into main page (UI-only)
+# The original app uses st.sidebar.<widgets>.
+# We redirect st.sidebar to a main-page container so controls render in main.
+# -----------------------------
+st.subheader("Entradas")
+_controls_container = st.container(border=True)
+
+# Monkeypatch streamlit module's sidebar target
+_stmod.sidebar = _controls_container  # redirects st.sidebar.* calls to main page container
+
+# -----------------------------
 # Launch original app (no logic changes)
+# -----------------------------
 APP_DIR = ROOT / "apps" / "cdf_isaac"
 os.chdir(APP_DIR)
 runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
