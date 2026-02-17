@@ -18,13 +18,12 @@ def _inject_signature_css():
         <style>
           /* Consistent page width and spacing */
           .block-container {
-            padding-top: 1.75rem;
+            padding-top: 1.25rem;
             padding-bottom: 2.5rem;
             max-width: 1180px;
           }
 
-          /* Hide Streamlit built-in multipage navigation (prevents duplicate menu)
-             Different Streamlit builds use different DOM shapes, so we hide multiple. */
+          /* Hide Streamlit built-in multipage navigation (prevents duplicate menu) */
           nav[data-testid="stSidebarNav"],
           div[data-testid="stSidebarNav"],
           div[data-testid="stSidebarNavItems"],
@@ -52,37 +51,64 @@ def _inject_signature_css():
             padding-top: 1.25rem;
           }
 
-          /* Header card */
-          .hc-header {
+          /* ===== Header: full blue bar with logo on right ===== */
+          .hc-topbar {
+            width: 100%;
+            background: #314270;       /* BLUE */
+            border-radius: 14px;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 14px 16px;
-            border: 1px solid rgba(17, 24, 39, 0.08);
-            border-radius: 18px;
-            background: #ffffff;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+            justify-content: space-between;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
           }
-          .hc-title {
+          .hc-topbar-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+          }
+          .hc-topbar-title {
             margin: 0;
-            font-size: 1.55rem;
-            line-height: 1.2;
-            font-weight: 700;
-            color: #111827;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.15;
           }
-          .hc-subtitle {
-            margin: 4px 0 0 0;
-            opacity: 0.8;
-            color: #111827;
+          .hc-topbar-subtitle {
+            margin: 0;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.85);
+          }
+          .hc-topbar-logo img {
+            height: 34px;
+            width: auto;
+            display: block;
           }
 
-          /* Accent line: BLUE ONLY (per your request) */
+          /* Accent line: YELLOW */
           .hc-accent {
             height: 4px;
             width: 100%;
             border-radius: 999px;
-            background: #314270;
-            margin: 14px 0 18px 0;
+            background: #FFBA00;       /* YELLOW */
+            margin: 10px 0 18px 0;
+          }
+
+          /* Sidebar brand block (bigger presence) */
+          .hc-sidebrand {
+            margin-top: 6px;
+            margin-bottom: 10px;
+          }
+          .hc-sidebrand-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin: 10px 0 0 0;
+            color: #111827;
+          }
+          .hc-sidebrand-sub {
+            margin: 4px 0 0 0;
+            color: rgba(17,24,39,0.70);
+            font-size: 0.95rem;
           }
 
           /* Professional buttons/inputs */
@@ -111,19 +137,26 @@ def _safe_page_link(path: str, label: str):
     try:
         st.page_link(path, label=label)
     except Exception:
-        # don't crash if a page is missing
         st.caption(label)
 
 
 def _sidebar_nav():
-    # Sidebar must be NAVIGATION ONLY
     with st.sidebar:
+        # Keep the big logo in the sidebar for presence, since header logo moved to the right.
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
             st.image(str(logo), use_container_width=True)
 
-        st.markdown("### HayCash ToolBox")
-        st.caption("Navegación")
+        st.markdown(
+            """
+            <div class="hc-sidebrand">
+              <div class="hc-sidebrand-title">HayCash ToolBox</div>
+              <div class="hc-sidebrand-sub">Navegación</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
         st.divider()
 
         _safe_page_link("app.py", "🧰 Inicio")
@@ -142,18 +175,41 @@ def _sidebar_nav():
 
 
 def _signature_header(title: str, subtitle: str):
-    st.markdown(
-        f"""
-        <div class="hc-header">
-          <div>
-            <div class="hc-title">{title}</div>
-            <div class="hc-subtitle">{subtitle}</div>
-          </div>
-        </div>
-        <div class="hc-accent"></div>
-        """,
-        unsafe_allow_html=True,
-    )
+    logo = ASSETS / "haycash_logo.jpg"
+    logo_html = ""
+    if logo.exists():
+        # Streamlit serves local assets fine via st.image, but for HTML we can use relative path in img tag only if it’s served.
+        # To keep it reliable, we’ll display the image via st.columns instead of raw HTML.
+        left, right = st.columns([6, 2], vertical_alignment="center")
+        with left:
+            st.markdown(
+                f"""
+                <div class="hc-topbar">
+                  <div class="hc-topbar-left">
+                    <div class="hc-topbar-title">{title}</div>
+                    <div class="hc-topbar-subtitle">{subtitle}</div>
+                  </div>
+                  <div class="hc-topbar-logo"></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with right:
+            st.image(str(logo), width=170)
+    else:
+        st.markdown(
+            f"""
+            <div class="hc-topbar">
+              <div class="hc-topbar-left">
+                <div class="hc-topbar-title">{title}</div>
+                <div class="hc-topbar-subtitle">{subtitle}</div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div class='hc-accent'></div>", unsafe_allow_html=True)
 
 
 # -----------------------------
@@ -171,14 +227,12 @@ _signature_header(
 
 # -----------------------------
 # KEY FIX: Move sidebar controls into main page (UI-only)
-# The original app uses st.sidebar.<widgets>.
-# We redirect st.sidebar to a main-page container so controls render in main.
 # -----------------------------
 st.subheader("Entradas")
 _controls_container = st.container(border=True)
 
-# Monkeypatch streamlit module's sidebar target
-_stmod.sidebar = _controls_container  # redirects st.sidebar.* calls to main page container
+# Redirect st.sidebar.* calls into main-page container
+_stmod.sidebar = _controls_container
 
 # -----------------------------
 # Launch original app (no logic changes)
