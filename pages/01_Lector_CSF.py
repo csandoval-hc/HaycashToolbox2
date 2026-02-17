@@ -12,9 +12,6 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 
 
-# -----------------------------
-# Signature Look (Step 2)
-# -----------------------------
 def _inject_signature_css():
     st.markdown(
         """
@@ -24,6 +21,11 @@ def _inject_signature_css():
             padding-top: 1.75rem;
             padding-bottom: 2.5rem;
             max-width: 1180px;
+          }
+
+          /* Hide Streamlit's built-in multipage navigation (prevents duplicate menu) */
+          nav[data-testid="stSidebarNav"] {
+            display: none !important;
           }
 
           /* Hide sidebar toggle controls so they never appear in main UI */
@@ -98,11 +100,10 @@ def _inject_signature_css():
 
 
 def _safe_page_link(path: str, label: str):
-    # Prevent StreamlitPageNotFoundError from crashing the app
     try:
         st.page_link(path, label=label)
     except Exception:
-        st.caption(label)  # show label but don't crash
+        st.caption(label)
 
 
 def _sidebar_nav():
@@ -121,7 +122,7 @@ def _sidebar_nav():
         _safe_page_link("pages/02_CSV_a_TXT_BBVA.py", "🏦 CSV a TXT BBVA")
         _safe_page_link("pages/03_Reporte_Interactivo_de_Leads.py", "📊 Reporte Interactivo de Leads")
         _safe_page_link("pages/04_Factoraje.py", "💳 Factoraje")
-        _safe_page_link("pages/05_Lector_edocat.py", "📄 Lector Edocot")  # FIXED filename
+        _safe_page_link("pages/05_Lector_edocat.py", "📄 Lector Edocat")
         _safe_page_link("pages/06_reporte_consejo.py", "📈 Reporte Consejo")
         _safe_page_link("pages/07_lector_contrato.py", "📝 Lector Contrato")
 
@@ -146,13 +147,9 @@ def _signature_header(title: str, subtitle: str):
     )
 
 
-# Must set page config first
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
-
-# Auth first (keeps current behavior)
 require_shared_password()
 
-# Apply signature UI
 _inject_signature_css()
 _sidebar_nav()
 _signature_header(
@@ -160,9 +157,7 @@ _signature_header(
     subtitle="Generar Excel desde CSF/CFDI (SAT).",
 )
 
-# -----------------------------
 # Launch original app (no logic changes)
-# -----------------------------
 APP_DIR = ROOT / "apps" / "cdf_isaac"
 os.chdir(APP_DIR)
 runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
