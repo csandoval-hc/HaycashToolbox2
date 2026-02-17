@@ -7,7 +7,7 @@ import yaml
 from simple_auth import require_shared_password
 
 # Keep crown (Streamlit default) by not setting page_icon
-st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 
 require_shared_password()
 
@@ -45,6 +45,11 @@ logo = ASSETS / "haycash_logo.jpg"
 st.markdown(
     f"""
     <style>
+      /* --- Force: no collapsed sidebar button in main UI --- */
+      div[data-testid="collapsedControl"] {{
+        display: none !important;
+      }}
+
       .stApp {{
         background-image: url("data:image/jpg;base64,{b64(bg)}");
         background-size: cover;
