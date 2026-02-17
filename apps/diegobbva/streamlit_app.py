@@ -1,7 +1,27 @@
-import streamlit as st
-from pathlib import Path
-import tempfile
+# -----------------------------
+# Bootstrap for Streamlit Cloud multipage execution
+# - Ensures local module imports work (codigo_diego)
+# - Keeps relative-path behavior consistent if the original script expects it
+# -----------------------------
 import os
+import sys
+from pathlib import Path
+
+_APP_DIR = Path(__file__).resolve().parent
+
+# Make sure this app folder is importable (so "import codigo_diego" works)
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
+
+# If the original script reads/writes relative paths, keep behavior stable
+try:
+    os.chdir(str(_APP_DIR))
+except Exception:
+    pass
+
+
+import streamlit as st
+import tempfile
 
 # Import original logic without changes
 import codigo_diego as logic
@@ -30,11 +50,13 @@ bloque_override = st.text_input("Bloque (opcional)", value=logic.BLOQUE_DEFAULT)
 
 st.divider()
 
+
 def _safe_int(s: str, default: int) -> int:
     try:
         return int(str(s).strip())
     except Exception:
         return default
+
 
 if st.button("Generar TXT"):
     if uploaded is None:
