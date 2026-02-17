@@ -7,32 +7,29 @@ import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- 0. CRITICAL SAFETY LOCK (PREVENTS WHITE SCREEN) ---
-# This forces the app to always reset its brain to the main folder
-# before doing anything else.
+# --- 0. SAFETY LOCK ---
 try:
     PROJECT_ROOT = Path(__file__).resolve().parent
     if os.getcwd() != str(PROJECT_ROOT):
         os.chdir(PROJECT_ROOT)
-    # Ensure the root is in the python path so imports work
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 except Exception:
     pass
 
-# --- 1. CORE CONFIGURATION ---
+# --- 1. CONFIG ---
 st.set_page_config(
     page_title="HayCash Terminal",
     page_icon="💳",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Changed to collapsed since we are hiding it
+    initial_sidebar_state="collapsed"
 )
 
 require_shared_password()
 
 ASSETS = PROJECT_ROOT / "assets"
 
-# --- 2. ASSET & LOGIC LOADING ---
+# --- 2. LOGIC ---
 def b64(path: Path) -> str:
     if not path.exists(): return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
@@ -43,35 +40,24 @@ def load_registry():
         if not cfg_path.exists(): return []
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
         return cfg.get("apps", [])
-    except Exception as e:
-        st.error(f"Registry Error: {e}")
+    except Exception:
         return []
 
 def safe_navigate(page_path, app_name):
-    """
-    Shows a loading spinner and handles the transition safely.
-    """
     try:
-        # 1. Visual Loading Indicator
-        with st.spinner(f"🚀 Initializing {app_name} protocol..."):
-            time.sleep(0.4)  # Small delay for visual feedback
-            
-        # 2. Force Directory Reset BEFORE switching
-        # This double-checks we are in the root before the jump
+        with st.spinner(f"AUTHENTICATING {app_name.upper()}..."):
+            time.sleep(0.3)
         if os.getcwd() != str(PROJECT_ROOT):
             os.chdir(PROJECT_ROOT)
-            
-        # 3. Go
         st.switch_page(page_path)
-        
     except Exception as e:
-        st.error(f"Navigation Failed: {e}")
+        st.error(f"Handshake failed: {e}")
 
-# --- 3. LOAD DATA ---
+# --- 3. DATA ---
 apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
-# --- 4. NAVIGATION MAP ---
+# --- 4. MAP ---
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -82,208 +68,239 @@ PAGE_BY_ID = {
     "lector_contrato": "pages/07_lector_contrato.py",
 }
 
-# --- 5. THE "AMEX OBSIDIAN" ENGINE (CSS) ---
+# --- 5. THE "CITADEL" DESIGN SYSTEM ---
 st.markdown(f"""
     <style>
-        /* IMPORT PREMIUM FONTS */
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
         
-        /* GLOBAL RESET */
+        /* BASE */
         html, body, [class*="css"] {{
-            font-family: 'Manrope', sans-serif;
-            -webkit-font-smoothing: antialiased;
+            font-family: 'Inter', sans-serif;
+            background-color: #050505;
+            color: #E2E8F0;
         }}
-
-        /* APP BACKGROUND: Deep Navy Obsidian */
-        .stApp {{
-            background-color: #0B0E14;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(49, 66, 112, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(255, 186, 0, 0.05) 0px, transparent 50%);
-            background-attachment: fixed;
-        }}
-
-        /* HIDE STREAMLIT CHROME & SIDEBAR COMPLETELY */
-        [data-testid="stSidebarNav"], 
-        [data-testid="collapsedControl"],
-        [data-testid="stSidebar"],
-        header[data-testid="stHeader"] {{
+        
+        /* HIDE STREAMLIT UI */
+        [data-testid="stSidebarNav"], [data-testid="collapsedControl"], header[data-testid="stHeader"] {{
             display: none !important;
         }}
 
-        /* --- HERO SECTION --- */
-        .block-container {{
-            padding-top: 3rem !important;
-            max-width: 1400px !important;
-        }}
-        
-        .dashboard-header {{
-            margin-bottom: 60px;
-            text-align: center; /* Centered for main dashboard impact */
-        }}
-        .welcome-eyebrow {{
-            color: #FFBA00;
-            font-size: 0.9rem;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }}
-        .welcome-title {{
-            color: #FFFFFF;
-            font-size: 4rem;
-            font-weight: 800;
-            line-height: 1.1;
-            letter-spacing: -0.03em;
-        }}
-        .welcome-subtitle {{
-            color: #64748B;
-            font-size: 1.25rem;
-            font-weight: 400;
-            margin-top: 20px;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
+        /* BACKGROUND */
+        .stApp {{
+            background: 
+                radial-gradient(circle at 15% 50%, rgba(49, 66, 112, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 186, 0, 0.08), transparent 25%);
+            background-color: #080a0f;
         }}
 
-        /* --- THE CARD GRID --- */
-        .fin-card {{
-            background: #11151E;
-            border: 1px solid #1E232F;
+        /* CONTAINER FIX */
+        .block-container {{
+            padding-top: 0 !important;
+            padding-bottom: 5rem !important;
+            max-width: 1400px !important;
+        }}
+
+        /* --- 1. TOP NAVIGATION BAR --- */
+        .top-nav {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 4rem;
+        }}
+        .nav-left {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+        .nav-logo {{
+            height: 32px;
+            width: auto;
+            border-radius: 6px;
+        }}
+        .nav-title {{
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }}
+        .status-badge {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #10B981;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 6px 12px;
+            border-radius: 100px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .status-dot {{
+            width: 6px; height: 6px;
+            background: #10B981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10B981;
+        }}
+
+        /* --- 2. HERO SECTION --- */
+        .hero-section {{
+            margin-bottom: 3.5rem;
+        }}
+        .hero-eyebrow {{
+            color: #FFBA00;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }}
+        .hero-title {{
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: white;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }}
+        .hero-sub {{
+            font-size: 1.1rem;
+            color: #64748B;
+            max-width: 600px;
+            line-height: 1.6;
+        }}
+
+        /* --- 3. CARD GRID SYSTEM --- */
+        /* Card Container */
+        div[data-testid="stVerticalBlockBorderWrapper"] {{
+            border: none !important;
+            background: transparent !important;
+        }}
+        
+        .module-card {{
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
-            padding: 30px;
+            padding: 24px;
+            height: 240px; /* Fixed height for uniformity */
             position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-        }}
-
-        /* Glow Effect on Hover */
-        .fin-card::before {{
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, #FFBA00, transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }}
         
-        .fin-card:hover {{
-            transform: translateY(-5px);
-            background: #161B26;
-            border-color: #314270;
+        .module-card:hover {{
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #FFBA00;
+            transform: translateY(-4px);
             box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
         }}
-        
-        .fin-card:hover::before {{
-            opacity: 1;
-        }}
 
-        .icon-box {{
-            width: 50px;
-            height: 50px;
-            background: rgba(49, 66, 112, 0.2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .card-icon {{
             font-size: 24px;
-            color: #8fa3ff;
-            margin-bottom: 25px;
-            border: 1px solid rgba(49, 66, 112, 0.3);
+            background: rgba(49, 66, 112, 0.3);
+            width: 48px; 
+            height: 48px;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            border-radius: 10px;
+            border: 1px solid rgba(49, 66, 112, 0.5);
+            margin-bottom: 1rem;
+            color: #fff;
         }}
 
-        .fin-card-title {{
-            color: #FFF;
-            font-size: 1.35rem;
+        .card-title {{
+            color: #fff;
+            font-size: 1.1rem;
             font-weight: 700;
-            margin-bottom: 10px;
-        }}
-
-        .fin-card-desc {{
-            color: #64748B;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 30px;
-            flex-grow: 1;
-        }}
-
-        /* Hide Default Container Borders for cleaner look */
-        div[data-testid="stVerticalBlockBorderWrapper"] {{
-             border: none !important;
-             background: transparent !important;
-        }}
-
-        /* STATUS INDICATORS */
-        .status-dot {{
-            height: 8px;
-            width: 8px;
-            background-color: #10B981;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+            margin-bottom: 0.5rem;
         }}
         
-        .system-status {{
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: #64748B;
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            background: rgba(255,255,255,0.03);
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.05);
+        .card-desc {{
+            color: #94a3b8;
+            font-size: 0.85rem;
+            line-height: 1.5;
         }}
 
-        /* LOGO ON MAIN PAGE (Since sidebar is gone) */
-        .main-logo {{
-            width: 180px;
-            margin-bottom: 30px;
-            filter: drop-shadow(0 0 15px rgba(255,255,255,0.1));
+        /* --- 4. BUTTON PHYSICS (THE FIX) --- */
+        /* Target the specific buttons inside columns */
+        div.stButton > button {{
+            width: 100%;
+            background-color: transparent !important;
+            border: 1px solid #334155 !important;
+            color: #94a3b8 !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            font-size: 0.8rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            padding: 0.6rem 1rem !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }}
+        
+        /* Hover State - High Contrast */
+        div.stButton > button:hover {{
+            background-color: #FFBA00 !important;
+            border-color: #FFBA00 !important;
+            color: #000000 !important; /* Dark text on gold background */
+            box-shadow: 0 0 15px rgba(255, 186, 0, 0.4) !important;
+            transform: scale(1.02);
+        }}
+        
+        /* Active/Focus State */
+        div.stButton > button:active {{
+            background-color: #e6a700 !important;
+            transform: scale(0.98);
         }}
 
     </style>
 """, unsafe_allow_html=True)
 
 
-# --- 6. MAIN DASHBOARD CONTENT ---
+# --- 6. RENDER UI ---
 
-# Status Indicator
-st.markdown("""
-    <div class="system-status">
-        <span class="status-dot"></span> SYSTEM ONLINE
-    </div>
-""", unsafe_allow_html=True)
-
-# Header Section (Centered)
-logo_html = f'<img src="data:image/jpg;base64,{logo_b64}" class="main-logo">' if logo_b64 else ""
-
+# 6.1 TOP BAR (Fixed Navigation Look)
 st.markdown(f"""
-    <div class="dashboard-header">
-        {logo_html}
-        <div class="welcome-eyebrow">HAYCASH TOOLBOX</div>
-        <div class="welcome-title">Centro de Control</div>
-        <div class="welcome-subtitle">
-            Seleccione un módulo operativo para comenzar. Todas las conexiones son seguras y monitoreadas.
+    <div class="top-nav">
+        <div class="nav-left">
+            <img src="data:image/jpg;base64,{logo_b64}" class="nav-logo">
+            <div class="nav-title">HayCash Terminal</div>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            SYSTEM SECURE
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# Grid Layout
-cols = st.columns(3)
+# 6.2 HERO SECTION
+st.markdown("""
+    <div class="hero-section">
+        <div class="hero-eyebrow">Enterprise Workspace</div>
+        <div class="hero-title">Financial Operations<br>Command Center</div>
+        <div class="hero-sub">
+            Centralized access to HayCash analytic engines. Select a module below to initialize secure environment.
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# 6.3 MODULE GRID
+cols = st.columns(4) # Using 4 columns for a wider, cleaner spread
 
 for i, a in enumerate(apps):
-    col = cols[i % 3]
+    col = cols[i % 4]
     
     name = a.get("name", "Module")
-    # Icon Logic
+    
+    # Mapped Icons
     icon = "⚡"
     if "CSF" in name: icon = "🧾"
     elif "BBVA" in name: icon = "🏦"
@@ -294,22 +311,24 @@ for i, a in enumerate(apps):
     elif "Contrato" in name: icon = "📝"
 
     with col:
-        # Visual Card
+        # Card Visuals
         st.markdown(f"""
-            <div class="fin-card">
-                <div class="icon-box">{icon}</div>
+            <div class="module-card">
                 <div>
-                    <div class="fin-card-title">{name}</div>
-                    <div class="fin-card-desc">Acceso autorizado al módulo de {name.lower()}. Procesamiento de datos y reportes en tiempo real.</div>
+                    <div class="card-icon">{icon}</div>
+                    <div class="card-title">{name}</div>
+                    <div class="card-desc">Initialize {name.lower()} module protocol.</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # Action Button (Matches card width)
-        if st.button(f"INICIAR {name.upper()}", key=f"dash_{a.get('id')}", use_container_width=True):
+        # Action Button (Placed physically outside the HTML card but visually aligned)
+        st.markdown("<div style='margin-top: -50px; padding: 0 20px; position: relative; z-index: 2;'>", unsafe_allow_html=True)
+        if st.button("LAUNCH", key=f"launch_{a.get('id')}"):
             target = PAGE_BY_ID.get(a.get("id"))
             if target:
                 safe_navigate(target, name)
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        # Spacing
-        st.markdown("<div style='margin-bottom: 30px'></div>", unsafe_allow_html=True)
+        # Spacer
+        st.markdown("<div style='margin-bottom: 2rem'></div>", unsafe_allow_html=True)
