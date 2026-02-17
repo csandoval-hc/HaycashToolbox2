@@ -1,274 +1,327 @@
-import base64
-import time
+# HayCash signature wrapper (Glass + moving water) + nav sidebar + app controls in main
 import os
-import sys
+import runpy
+import base64
 from pathlib import Path
+
 import streamlit as st
-import yaml
+import streamlit as _stmod  # monkeypatch st.sidebar output for app controls
+
 from simple_auth import require_shared_password
 
-# --- 0. SAFETY LOCK ---
-try:
-    PROJECT_ROOT = Path(__file__).resolve().parent
-    if os.getcwd() != str(PROJECT_ROOT):
-        os.chdir(PROJECT_ROOT)
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
-except Exception:
-    pass
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "assets"
 
-# --- 1. CONFIG ---
-st.set_page_config(
-    page_title="HayCash ToolBox",
-    page_icon="💎",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Keep a reference to the REAL sidebar before monkeypatching
+_REAL_SIDEBAR = st.sidebar
 
-require_shared_password()
 
-ASSETS = PROJECT_ROOT / "assets"
-
-# --- 2. LOGIC ---
-def b64(path: Path) -> str:
-    if not path.exists(): return ""
+def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
-def load_registry():
-    try:
-        cfg_path = PROJECT_ROOT / "apps.yaml"
-        if not cfg_path.exists(): return []
-        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-        return cfg.get("apps", [])
-    except Exception:
-        return []
 
-def safe_navigate(page_path, app_name):
-    try:
-        with st.spinner(f"Opening {app_name}..."):
-            time.sleep(0.3)
-        if os.getcwd() != str(PROJECT_ROOT):
-            os.chdir(PROJECT_ROOT)
-        st.switch_page(page_path)
-    except Exception as e:
-        st.error(f"Navigation error: {e}")
-
-# --- 3. ASSETS ---
-apps = load_registry()
-logo_b64 = b64(ASSETS / "haycash_logo.jpg")
-
-# --- 4. MAP ---
-PAGE_BY_ID = {
-    "cdf_isaac": "pages/01_Lector_CSF.py",
-    "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
-    "analisis_leads": "pages/03_Reporte_Interactivo_de_Leads.py",
-    "factoraje": "pages/04_Factoraje.py",
-    "lector_edocat": "pages/05_Lector_edocat.py",
-    "reporte_consejo": "pages/06_reporte_consejo.py",
-    "lector_contrato": "pages/07_lector_contrato.py",
-}
-
-# --- 5. THE "CUPERTINO GLASS" ENGINE ---
-st.markdown(f"""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap');
-
-        /* RESET */
-        html, body, [class*="css"] {{
-            font-family: 'SF Pro Display', 'Inter', sans-serif;
-            background: #000000;
-            color: white;
+def _inject_signature_css(logo_b64: str | None):
+    # Use <img> in header, but keep a fallback class just in case
+    logo_css = ""
+    if logo_b64:
+        logo_css = f"""
+        .hc-logo-img {{
+          height: 68px;
+          width: auto;
+          display: block;
+          filter: drop-shadow(0 10px 18px rgba(0,0,0,0.18));
         }}
+        """
 
-        /* WALLPAPER: Deep Space Gradient */
-        .stApp {{
-            background: radial-gradient(circle at 50% -20%, #2b3044 0%, #06070a 60%);
-            background-attachment: fixed;
-        }}
+    st.markdown(
+        f"""
+        <style>
+          :root {{
+            --hc-blue: #314270;
+            --hc-yellow: #FFBA00;
+            --glass: rgba(255, 255, 255, 0.10);
+            --glass-strong: rgba(255, 255, 255, 0.16);
+            --stroke: rgba(255, 255, 255, 0.22);
+            --shadow: 0 18px 45px rgba(0,0,0,0.18);
+          }}
 
-        /* --- UI REMOVAL --- */
-        [data-testid="stSidebar"], 
-        [data-testid="collapsedControl"], 
-        section[data-testid="stSidebar"],
-        header[data-testid="stHeader"] {{
+          /* ===== Page layout ===== */
+          .block-container {{
+            max-width: 1240px;          /* consistent "same size" feel */
+            padding-top: 1.25rem;
+            padding-bottom: 3rem;
+          }}
+
+          /* ===== Hide Streamlit built-in multipage nav so you don't get duplicates ===== */
+          nav[data-testid="stSidebarNav"],
+          div[data-testid="stSidebarNav"],
+          div[data-testid="stSidebarNavItems"],
+          ul[data-testid="stSidebarNavItems"] {{
             display: none !important;
-            visibility: hidden !important;
-            width: 0px !important;
-            height: 0px !important;
-        }}
+            height: 0 !important;
+            overflow: hidden !important;
+          }}
 
-        /* --- LAYOUT --- */
-        .block-container {{
-            padding-top: 5vh !important;
-            max-width: 1200px !important;
-        }}
+          /* ===== Hide sidebar toggle everywhere (never show in main UI) ===== */
+          div[data-testid="collapsedControl"],
+          div[data-testid="stSidebarCollapsedControl"],
+          button[aria-label="Open sidebar"],
+          button[aria-label="Close sidebar"],
+          button[data-testid="stSidebarCollapseButton"],
+          button[data-testid="stSidebarExpandButton"] {{
+            display: none !important;
+          }}
 
-        /* --- HEADER --- */
-        .apple-header {{
+          /* ===== Animated "moving water" background (no assets needed) ===== */
+          .stApp {{
+            background:
+              radial-gradient(1200px 600px at 10% 10%, rgba(49,66,112,0.22), transparent 60%),
+              radial-gradient(900px 500px at 80% 20%, rgba(255,186,0,0.12), transparent 65%),
+              radial-gradient(1000px 700px at 30% 90%, rgba(49,66,112,0.18), transparent 60%),
+              linear-gradient(120deg, rgba(10,15,25,0.95), rgba(12,18,30,0.92));
+            background-attachment: fixed;
+            position: relative;
+            overflow-x: hidden;
+          }}
+
+          /* animated water layer */
+          .stApp:before {{
+            content: "";
+            position: fixed;
+            inset: -40%;
+            z-index: 0;
+            background:
+              radial-gradient(circle at 20% 30%, rgba(255,255,255,0.10), transparent 35%),
+              radial-gradient(circle at 70% 60%, rgba(255,255,255,0.08), transparent 38%),
+              radial-gradient(circle at 40% 80%, rgba(255,255,255,0.07), transparent 40%),
+              radial-gradient(circle at 85% 25%, rgba(255,255,255,0.06), transparent 42%);
+            filter: blur(24px);
+            opacity: 0.65;
+            animation: hc-water 16s ease-in-out infinite alternate;
+            transform: translate3d(0,0,0);
+          }}
+
+          @keyframes hc-water {{
+            0%   {{ transform: translate(-3%, -2%) scale(1.02) rotate(0.2deg); }}
+            50%  {{ transform: translate(2%,  1%) scale(1.05) rotate(-0.2deg); }}
+            100% {{ transform: translate(4%, -1%) scale(1.03) rotate(0.25deg); }}
+          }}
+
+          /* keep your content above background layers */
+          .block-container, section[data-testid="stSidebar"] {{
+            position: relative;
+            z-index: 1;
+          }}
+
+          /* ===== Sidebar: glass + always looks "product" ===== */
+          section[data-testid="stSidebar"] {{
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.05)) !important;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-right: 1px solid rgba(255,255,255,0.10);
+          }}
+          section[data-testid="stSidebar"] .block-container {{
+            padding-top: 1.15rem;
+            padding-bottom: 1.25rem;
+          }}
+
+          /* ===== Header: single unified glass bar ===== */
+          .hc-topbar {{
+            width: 100%;
+            border-radius: 18px;
+            padding: 18px 20px;
             display: flex;
             align-items: center;
-            margin-bottom: 60px;
-            animation: fadeIn 1s ease-out;
-        }}
-        
-        .logo-mark {{
-            width: 64px;
-            height: 64px;
-            border-radius: 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }}
-        
-        .header-text {{
-            margin-left: 20px;
-        }}
-        
-        .header-text h1 {{
-            font-size: 2.5rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin: 0;
-            background: linear-gradient(180deg, #fff 0%, #a1a1aa 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }}
-        
-        .header-text p {{
-            color: #71717a;
-            font-size: 1rem;
-            margin: 5px 0 0 0;
-        }}
+            justify-content: space-between;
+            gap: 18px;
 
-        /* --- THE MAGIC BUTTONS (CARDS) --- */
-        /* We turn the button element itself into the card */
-        
-        div.stButton > button {{
-            all: unset; /* Reset default streamlit styles */
-            
-            /* Card Dimensions & Layout */
-            width: 100%;
-            height: 200px;
+            background: linear-gradient(135deg,
+              rgba(49,66,112,0.60),
+              rgba(49,66,112,0.42)
+            );
+            border: 1px solid rgba(255,255,255,0.18);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: var(--shadow);
+          }}
+
+          .hc-topbar-left {{
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 30px;
-            box-sizing: border-box;
-            
-            /* Glassmorphism */
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            
-            /* Typography inside button */
-            color: #f4f4f5;
-            font-size: 1.2rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            
-            /* Physics */
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }}
-        
-        /* HOVER EFFECT: The Rainbow Border */
-        /* We use a pseudo-element gradient that rotates behind the card */
-        div.stButton > button::before {{
-            content: "";
-            position: absolute;
-            top: 50%; left: 50%;
-            width: 150%; height: 150%;
-            background: conic-gradient(from 0deg, transparent 0deg, #FFBA00 90deg, transparent 180deg);
-            transform: translate(-50%, -50%) rotate(0deg);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-            pointer-events: none;
-        }}
+            gap: 6px;
+            min-width: 0;
+            flex: 1 1 auto;
+          }}
 
-        div.stButton > button::after {{
-            content: "";
-            position: absolute;
-            inset: 1px; /* The border width */
-            background: rgba(20, 20, 25, 0.9); /* Inner card background */
-            border-radius: 24px;
-            z-index: -1;
-        }}
-
-        div.stButton > button:hover {{
-            transform: scale(1.02);
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6);
-        }}
-        
-        div.stButton > button:hover::before {{
-            opacity: 1;
-            animation: rotate 3s linear infinite;
-        }}
-
-        /* TEXT STYLING INSIDE BUTTON */
-        /* Streamlit buttons force text centering, we force it back */
-        div.stButton > button p {{
+          .hc-topbar-title {{
             margin: 0;
-            text-align: left;
+            font-size: 1.85rem;     /* bigger presence */
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.12;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }}
+
+          .hc-topbar-subtitle {{
+            margin: 0;
+            font-size: 1.02rem;
+            color: rgba(255,255,255,0.88);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }}
+
+          {logo_css}
+
+          /* Yellow accent line */
+          .hc-accent {{
+            height: 4px;
             width: 100%;
-        }}
+            border-radius: 999px;
+            background: var(--hc-yellow);
+            margin: 12px 0 18px 0;
+            box-shadow: 0 8px 18px rgba(255,186,0,0.20);
+          }}
 
-        @keyframes rotate {{
-            from {{ transform: translate(-50%, -50%) rotate(0deg); }}
-            to {{ transform: translate(-50%, -50%) rotate(360deg); }}
-        }}
-        
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(20px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
+          /* ===== Main app "frame": makes every app same shape/size visually ===== */
+          .hc-frame-title {{
+            margin: 0 0 10px 0;
+            color: rgba(255,255,255,0.92);
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+          }}
 
-    </style>
-""", unsafe_allow_html=True)
+          /* Style Streamlit border containers as glass cards */
+          div[data-testid="stVerticalBlockBorderWrapper"] {{
+            border-radius: 20px !important;
+            border: 1px solid rgba(255,255,255,0.16) !important;
+            background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.10)) !important;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 18px 45px rgba(0,0,0,0.16);
+          }}
 
-# --- 6. RENDER HEADER ---
-logo_img = f'<img src="data:image/jpg;base64,{logo_b64}" class="logo-mark">' if logo_b64 else ""
+          /* Controls sizing / consistent feel */
+          .stButton > button {{
+            border-radius: 14px !important;
+            height: 44px !important;
+            padding: 0 16px !important;
+            border: 1px solid rgba(255,255,255,0.22) !important;
+            background: rgba(255,255,255,0.10) !important;
+            color: rgba(255,255,255,0.92) !important;
+          }}
+          .stButton > button:hover {{
+            border-color: rgba(255,186,0,0.55) !important;
+            box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+          }}
 
-st.markdown(f"""
-    <div class="apple-header">
-        {logo_img}
-        <div class="header-text">
-            <h1>HayCash ToolBox</h1>
-            <p>Select an application to launch.</p>
+          /* Text inputs */
+          .stTextInput input, .stTextArea textarea, .stNumberInput input {{
+            border-radius: 14px !important;
+            background: rgba(255,255,255,0.10) !important;
+            border: 1px solid rgba(255,255,255,0.18) !important;
+            color: rgba(255,255,255,0.92) !important;
+          }}
+
+          /* Dataframes keep readable on glass */
+          .stDataFrame, .stDataEditor {{
+            background: rgba(255,255,255,0.92) !important;
+            border-radius: 14px !important;
+          }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _safe_page_link(path: str, label: str):
+    try:
+        st.page_link(path, label=label)
+    except Exception:
+        st.caption(label)
+
+
+def _sidebar_nav():
+    # ALWAYS render nav/title in the real sidebar (not affected by monkeypatch)
+    with _REAL_SIDEBAR:
+        logo = ASSETS / "haycash_logo.jpg"
+        if logo.exists():
+            st.image(str(logo), use_container_width=True)
+
+        st.markdown("## HayCash ToolBox")
+        st.caption("Navegación")
+        st.divider()
+
+        _safe_page_link("app.py", "🧰 Inicio")
+        _safe_page_link("pages/01_Lector_CSF.py", "🧾 Lector CSF")
+        _safe_page_link("pages/02_CSV_a_TXT_BBVA.py", "🏦 CSV a TXT BBVA")
+        _safe_page_link("pages/03_Reporte_Interactivo_de_Leads.py", "📊 Reporte Interactivo de Leads")
+        _safe_page_link("pages/04_Factoraje.py", "💳 Factoraje")
+        _safe_page_link("pages/05_Lector_edocat.py", "📄 Lector Edocat")
+        _safe_page_link("pages/06_reporte_consejo.py", "📈 Reporte Consejo")
+        _safe_page_link("pages/07_lector_contrato.py", "📝 Lector Contrato")
+
+        st.divider()
+        if st.session_state.get("auth_ok"):
+            user = st.session_state.get("auth_user") or "-"
+            st.caption(f"Sesión: **{user}**")
+
+
+def _signature_header(title: str, subtitle: str, logo_b64: str | None):
+    logo_html = ""
+    if logo_b64:
+        # REAL big logo INSIDE the same bar
+        logo_html = f'<img class="hc-logo-img" src="data:image/jpg;base64,{logo_b64}" alt="HayCash" />'
+
+    st.markdown(
+        f"""
+        <div class="hc-topbar">
+          <div class="hc-topbar-left">
+            <div class="hc-topbar-title">{title}</div>
+            <div class="hc-topbar-subtitle">{subtitle}</div>
+          </div>
+          {logo_html}
         </div>
-    </div>
-""", unsafe_allow_html=True)
+        <div class="hc-accent"></div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# --- 7. RENDER CARDS (AS BUTTONS) ---
-cols = st.columns(3)
 
-for i, a in enumerate(apps):
-    col = cols[i % 3]
-    
-    name = a.get("name", "App")
-    
-    # Icons (Simple unicode for speed/reliability inside buttons)
-    icon = "⚡"
-    if "CSF" in name: icon = "🧾"
-    elif "BBVA" in name: icon = "🏦"
-    elif "Leads" in name: icon = "📊"
-    elif "Factoraje" in name: icon = "💳"
-    elif "Edocat" in name: icon = "📄"
-    elif "Consejo" in name: icon = "📈"
-    elif "Contrato" in name: icon = "📝"
+# -----------------------------
+# Page setup
+# -----------------------------
+st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
+require_shared_password()
 
-    with col:
-        # We put the icon AND name inside the button label
-        # The CSS handles the layout to look like a card
-        label_text = f"{icon}  \n\n{name}"
-        
-        if st.button(label_text, key=f"app_{a.get('id')}"):
-            target = PAGE_BY_ID.get(a.get("id"))
-            if target:
-                safe_navigate(target, name)
-        
-        st.write("") # Spacer
-        st.write("")
+logo_file = ASSETS / "haycash_logo.jpg"
+logo_b64 = _b64(logo_file) if logo_file.exists() else None
+
+_inject_signature_css(logo_b64)
+_sidebar_nav()
+_signature_header(
+    title="Lector CSF",
+    subtitle="Generar Excel desde CSF/CFDI (SAT).",
+    logo_b64=logo_b64,
+)
+
+# -----------------------------
+# Main "frame" container: forces consistent look/size across apps
+# -----------------------------
+st.markdown('<div class="hc-frame-title">Aplicación</div>', unsafe_allow_html=True)
+
+_controls_container = st.container(border=True)
+
+# IMPORTANT: Monkeypatch AFTER sidebar nav is built (so nav stays)
+_stmod.sidebar = _controls_container
+
+# -----------------------------
+# Launch original app (no logic changes)
+# -----------------------------
+APP_DIR = ROOT / "apps" / "cdf_isaac"
+os.chdir(APP_DIR)
+runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
