@@ -8,7 +8,10 @@ import streamlit as _stmod  # Needed for the monkeypatch
 
 from simple_auth import require_shared_password
 
+# --- 1. SAVE THE SAFE LOCATION (CRITICAL FIX) ---
+# We save the main folder location so we can always return to it.
 ROOT = Path(__file__).resolve().parents[1]
+SAFE_ROOT = ROOT
 ASSETS = ROOT / "assets"
 
 def _b64(path: Path) -> str:
@@ -160,6 +163,20 @@ with st.container(border=True):
 # MONKEYPATCH: Any call to st.sidebar in the sub-app now goes into 'control_space'
 _stmod.sidebar = control_space
 
-# --- LAUNCH INTERNAL APP ---
-APP_PATH = ROOT / "apps" / "cdf_isaac" / "app_isaac.py"
-runpy.run_path(str(APP_PATH), run_name="__main__")
+# --- LAUNCH INTERNAL APP WITH CRASH PROTECTION ---
+try:
+    APP_DIR = ROOT / "apps" / "cdf_isaac"
+    
+    # Force the system to enter the app directory so it finds its files
+    os.chdir(APP_DIR)
+    
+    # Run the app
+    runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
+
+except Exception as e:
+    st.error(f"Application Error: {e}")
+
+finally:
+    # CRITICAL: Always return to the safe root folder.
+    # This prevents the white screen when you try to leave the page.
+    os.chdir(SAFE_ROOT)
