@@ -4,9 +4,9 @@ import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- PAGE CONFIGURATION ---
+# --- 1. CONFIGURATION: PREPARE THE CANVAS ---
 st.set_page_config(
-    page_title="HayCash ToolBox",
+    page_title="HayCash Terminal",
     page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -17,7 +17,7 @@ require_shared_password()
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 
-# --- UTILS ---
+# --- 2. ASSET LOADING ---
 def b64(path: Path) -> str:
     if not path.exists(): return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
@@ -28,7 +28,7 @@ def load_registry():
     cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
     return cfg.get("apps", [])
 
-# --- NAVIGATION MAP ---
+# --- 3. NAVIGATION REGISTRY ---
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -42,262 +42,300 @@ PAGE_BY_ID = {
 apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
-# --- JAW-DROPPING CSS ---
+# --- 4. THE "AMEX" STYLE ENGINE ---
 st.markdown(f"""
     <style>
-        /* GLOBAL RESET & FONTS */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        /* IMPORT PREMIUM FONTS */
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;800&display=swap');
         
+        /* GLOBAL RESET */
         html, body, [class*="css"] {{
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }}
 
-        /* BACKGROUND - Deep Midnight Finance Theme */
+        /* APP BACKGROUND: Deep Navy Obsidian */
         .stApp {{
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #172554 100%);
+            background-color: #0B0E14;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(49, 66, 112, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(255, 186, 0, 0.05) 0px, transparent 50%);
             background-attachment: fixed;
         }}
 
-        /* LAYOUT FIXES */
-        .block-container {{
-            padding-top: 2rem !important;
-            padding-bottom: 5rem !important;
-            max-width: 1400px !important;
-        }}
-
-        /* HIDE DEFAULT STREAMLIT ELEMENTS */
+        /* HIDE STREAMLIT CHROME */
         [data-testid="stSidebarNav"], 
         [data-testid="collapsedControl"],
         header[data-testid="stHeader"] {{
             display: none !important;
         }}
 
-        /* --- SIDEBAR: FROSTED GLASS --- */
+        /* --- SIDEBAR: THE COMMAND TOWER --- */
         section[data-testid="stSidebar"] {{
-            background-color: rgba(15, 23, 42, 0.6) !important;
-            backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background-color: #06080C !important;
+            border-right: 1px solid #1E232F;
+            width: 300px !important;
+            padding-top: 0 !important;
         }}
         
-        section[data-testid="stSidebar"] h2 {{
-            color: #fff;
-            font-weight: 600;
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
+        /* LOGO CONTAINER */
+        .sidebar-logo-container {{
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 1px solid #1E232F;
+            background: #06080C;
+            margin-bottom: 20px;
+        }}
+        .sidebar-logo {{
+            width: 100%;
+            max-width: 220px; /* Big and Bold */
+            height: auto;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.05));
+        }}
+
+        /* SIDEBAR LINKS */
+        .nav-header {{
+            color: #586578;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 0 25px;
+            margin-bottom: 10px;
         }}
         
-        section[data-testid="stSidebar"] p {{
-            color: #94a3b8;
-            font-size: 0.85rem;
-        }}
-        
-        /* Sidebar Buttons */
-        section[data-testid="stSidebar"] button {{
+        div.stButton > button {{
             background: transparent !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            color: #cbd5e1 !important;
+            border: 1px solid transparent !important;
+            color: #94A3B8 !important;
             text-align: left !important;
-            transition: all 0.2s ease;
+            padding: 12px 25px !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            transition: all 0.2s ease-in-out;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            width: 100%;
+            display: flex;
+            align-items: center;
         }}
-        section[data-testid="stSidebar"] button:hover {{
-            background: rgba(255,255,255,0.1) !important;
-            color: #fff !important;
-            border-color: #FFBA00 !important;
+        
+        /* HOVER STATE FOR SIDEBAR */
+        div.stButton > button:hover {{
+            background: #11151E !important;
+            color: #FFFFFF !important;
+            border-left: 3px solid #FFBA00 !important;
+            padding-left: 22px !important; /* Compensate for border */
         }}
 
         /* --- HERO SECTION --- */
-        .hero-container {{
-            position: relative;
-            background: rgba(30, 41, 59, 0.7);
-            border-radius: 24px;
-            padding: 4rem 3rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .block-container {{
+            padding-top: 2rem !important;
+            max-width: 1600px !important;
         }}
         
-        /* Subtle glow effect behind hero */
-        .hero-container::before {{
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -10%;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(255, 186, 0, 0.15) 0%, rgba(0,0,0,0) 70%);
-            z-index: 0;
-            pointer-events: none;
+        .dashboard-header {{
+            margin-bottom: 60px;
         }}
-
-        .hero-content {{
-            z-index: 1;
+        .welcome-eyebrow {{
+            color: #FFBA00;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
         }}
-
-        .hero-title {{
+        .welcome-title {{
+            color: #FFFFFF;
             font-size: 3.5rem;
             font-weight: 800;
-            background: linear-gradient(to right, #ffffff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
             line-height: 1.1;
+            letter-spacing: -0.02em;
         }}
-
-        .hero-subtitle {{
-            font-size: 1.25rem;
-            color: #94a3b8;
-            font-weight: 300;
+        .welcome-subtitle {{
+            color: #64748B;
+            font-size: 1.2rem;
+            font-weight: 400;
+            margin-top: 15px;
             max-width: 600px;
         }}
 
-        .hero-logo {{
-            height: 100px;
-            width: auto;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            z-index: 1;
+        /* --- THE CARD GRID --- */
+        .grid-container {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
         }}
 
-        /* --- CARDS --- */
-        .card-container {{
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            padding: 24px;
+        .fin-card {{
+            background: #11151E;
+            border: 1px solid #1E232F;
+            border-radius: 16px;
+            padding: 30px;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             height: 100%;
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            position: relative;
             overflow: hidden;
         }}
+
+        /* PREMIUM HOVER GLOW */
+        .fin-card::before {{
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, #FFBA00, transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }}
         
-        .card-container:hover {{
-            transform: translateY(-6px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            border-color: rgba(255, 186, 0, 0.3);
-            background: rgba(30, 41, 59, 0.6);
+        .fin-card:hover {{
+            transform: translateY(-5px);
+            background: #161B26;
+            border-color: #314270;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+        }}
+        
+        .fin-card:hover::before {{
+            opacity: 1;
         }}
 
-        .card-icon {{
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            width: 64px;
-            height: 64px;
+        .icon-box {{
+            width: 50px;
+            height: 50px;
+            background: rgba(49, 66, 112, 0.2);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 16px;
-            color: #FFBA00;
+            font-size: 24px;
+            color: #8fa3ff;
+            margin-bottom: 25px;
+            border: 1px solid rgba(49, 66, 112, 0.3);
         }}
 
-        .card-title {{
-            color: #fff;
-            font-size: 1.4rem;
+        .fin-card-title {{
+            color: #FFF;
+            font-size: 1.25rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
         }}
 
-        .card-desc {{
-            color: #94a3b8;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 1.5rem;
+        .fin-card-desc {{
+            color: #64748B;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
             flex-grow: 1;
         }}
 
-        /* --- BUTTON OVERRIDES --- */
-        /* We target the specific button inside the columns */
-        div[data-testid="stVerticalBlock"] button {{
-            background: #FFBA00 !important;
-            color: #0f172a !important;
-            border: none !important;
-            font-weight: 700 !important;
-            padding: 0.6rem 1.2rem !important;
-            border-radius: 10px !important;
-            width: 100%;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-            font-size: 0.85rem !important;
-            letter-spacing: 0.5px;
+        /* BUTTON OVERRIDES FOR GRID */
+        div[data-testid="stVerticalBlockBorderWrapper"] {{
+             border: none !important;
+             background: transparent !important;
+        }}
+
+        /* STATUS INDICATORS */
+        .status-dot {{
+            height: 8px;
+            width: 8px;
+            background-color: #10B981;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
         }}
         
-        div[data-testid="stVerticalBlock"] button:hover {{
-            background: #eebb00 !important;
-            transform: scale(1.02);
-            box-shadow: 0 0 15px rgba(255, 186, 0, 0.4);
-        }}
-        
-        /* Section Header */
-        .section-header {{
-            color: #fff;
-            font-size: 1.5rem;
+        .system-status {{
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            color: #64748B;
+            font-size: 0.8rem;
             font-weight: 600;
-            margin: 2rem 0 1.5rem 0;
-            border-left: 4px solid #FFBA00;
-            padding-left: 1rem;
+            display: flex;
+            align-items: center;
         }}
 
     </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR CONTENT ---
+# --- 5. SIDEBAR CONSTRUCTION ---
 with st.sidebar:
+    # 5.1 THE LOGO (Large & Prominent)
     if logo_b64:
         st.markdown(f"""
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <img src="data:image/jpg;base64,{logo_b64}" style="width: 80%; border-radius: 12px; opacity: 0.9;">
+            <div class="sidebar-logo-container">
+                <img src="data:image/jpg;base64,{logo_b64}" class="sidebar-logo">
             </div>
         """, unsafe_allow_html=True)
     
-    st.markdown("## Menú Rápido")
-    st.markdown("<p>Navegación directa</p>", unsafe_allow_html=True)
-    st.divider()
+    # 5.2 NAVIGATION LINKS
+    st.markdown('<div class="nav-header">PLATAFORMA</div>', unsafe_allow_html=True)
     
-    # Sidebar Navigation Buttons
+    # Home is active by default logic visually (handled by Streamlit routing)
+    st.button("🏠  Dashboard", key="nav_home", disabled=True) 
+
+    st.markdown('<div class="nav-header" style="margin-top: 20px;">HERRAMIENTAS</div>', unsafe_allow_html=True)
+
+    # Render Nav Items
     for app_id, page in PAGE_BY_ID.items():
-        # Clean up the name for the sidebar
+        # Get clean name
         raw_name = next((a.get("name") for a in apps if a.get("id") == app_id), app_id)
-        # Add simple icon logic for sidebar list
-        icon = "🔹"
+        
+        # Assign premium icons
+        icon = "●"
         if "CSF" in raw_name: icon = "🧾"
         elif "BBVA" in raw_name: icon = "🏦"
         elif "Leads" in raw_name: icon = "📊"
         elif "Factoraje" in raw_name: icon = "💳"
+        elif "Edocat" in raw_name: icon = "📄"
+        elif "Consejo" in raw_name: icon = "📈"
+        elif "Contrato" in raw_name: icon = "📝"
         
-        if st.button(f"{icon}  {raw_name}", key=f"nav_{app_id}", use_container_width=True):
+        # Sidebar Button
+        if st.button(f"{icon}  {raw_name}", key=f"side_{app_id}"):
             st.switch_page(page)
 
-# --- MAIN HERO AREA ---
-st.markdown(f"""
-    <div class="hero-container">
-        <div class="hero-content">
-            <div class="hero-title">HayCash ToolBox</div>
-            <div class="hero-subtitle">Plataforma centralizada para gestión financiera, análisis de datos y automatización operativa.</div>
+    # 5.3 BOTTOM META
+    st.markdown("""
+        <div style="position: fixed; bottom: 20px; left: 20px; color: #334155; font-size: 0.7rem;">
+            HayCash Secure Terminal<br>v2.4.0 • Encrypted
         </div>
-        <img src="data:image/jpg;base64,{logo_b64}" class="hero-logo">
+    """, unsafe_allow_html=True)
+
+
+# --- 6. MAIN DASHBOARD CONTENT ---
+
+# 6.1 SYSTEM STATUS (Top Right)
+st.markdown("""
+    <div class="system-status">
+        <span class="status-dot"></span> SYSTEM OPERATIONAL
     </div>
 """, unsafe_allow_html=True)
 
+# 6.2 HERO HEADER
+st.markdown("""
+    <div class="dashboard-header">
+        <div class="welcome-eyebrow">HAYCASH TOOLBOX</div>
+        <div class="welcome-title">Centro de Control</div>
+        <div class="welcome-subtitle">
+            Seleccione un módulo operativo para comenzar. Todas las conexiones son seguras y monitoreadas.
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
-# --- DASHBOARD GRID ---
-st.markdown('<div class="section-header">Módulos Operativos</div>', unsafe_allow_html=True)
-
-# Grid Layout Strategy
+# 6.3 APP GRID (The "Vault" Look)
 cols = st.columns(3)
 
 for i, a in enumerate(apps):
     col = cols[i % 3]
     
-    # Determine Icon based on app name
-    name = a.get("name", "Herramienta")
+    name = a.get("name", "Module")
+    # Icon Selection
     icon = "⚡"
     if "CSF" in name: icon = "🧾"
     elif "BBVA" in name: icon = "🏦"
@@ -306,28 +344,26 @@ for i, a in enumerate(apps):
     elif "Edocat" in name: icon = "📄"
     elif "Consejo" in name: icon = "📈"
     elif "Contrato" in name: icon = "📝"
-    
+
     with col:
-        # Card HTML Structure
+        # We render the card visuals in HTML
         st.markdown(f"""
-            <div class="card-container">
+            <div class="fin-card">
+                <div class="icon-box">{icon}</div>
                 <div>
-                    <div class="card-icon">{icon}</div>
-                    <div class="card-title">{name}</div>
-                    <div class="card-desc">Acceso directo al módulo de {name.lower()} para operaciones y reportes.</div>
+                    <div class="fin-card-title">{name}</div>
+                    <div class="fin-card-desc">Acceso autorizado al módulo de {name.lower()}. Procesamiento de datos y reportes en tiempo real.</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # The button sits outside the HTML div but visually blends because of the column layout
-        # We use a container to pull the button 'up' visually via CSS if needed, 
-        # but standard stacking works best for functionality.
-        if st.button("ACCEDER", key=f"btn_{a.get('id')}"):
+        # The Action Button (Hidden visually but clickable, or styled to match)
+        # To make it feel premium, we use a full-width button right below the card visual
+        # In this layout, placing the button cleanly is key.
+        if st.button(f"INICIAR {name.upper()}", key=f"dash_{a.get('id')}", use_container_width=True):
             target = PAGE_BY_ID.get(a.get("id"))
             if target:
                 st.switch_page(target)
-            else:
-                st.error("Módulo no disponible.")
         
-        # Spacer for grid alignment
-        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
+        # Spacer
+        st.markdown("<div style='margin-bottom: 30px'></div>", unsafe_allow_html=True)
