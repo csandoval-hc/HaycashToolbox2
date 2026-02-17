@@ -45,9 +45,35 @@ logo = ASSETS / "haycash_logo.jpg"
 st.markdown(
     f"""
     <style>
-      /* --- Force: no collapsed sidebar button in main UI --- */
+      /* --- HARD HIDE: sidebar open/close controls everywhere --- */
+      /* Floating "open sidebar" control that appears in main */
       div[data-testid="collapsedControl"] {{
         display: none !important;
+      }}
+      div[data-testid="stSidebarCollapsedControl"] {{
+        display: none !important;
+      }}
+
+      /* Header buttons (Open sidebar / Close sidebar) */
+      button[aria-label="Open sidebar"] {{
+        display: none !important;
+      }}
+      button[aria-label="Close sidebar"] {{
+        display: none !important;
+      }}
+
+      /* Some Streamlit versions use these testids for the toggle button */
+      button[data-testid="stSidebarCollapseButton"] {{
+        display: none !important;
+      }}
+      button[data-testid="stSidebarExpandButton"] {{
+        display: none !important;
+      }}
+
+      /* Ensure sidebar stays visible (best-effort) */
+      section[data-testid="stSidebar"] {{
+        transform: none !important;
+        visibility: visible !important;
       }}
 
       .stApp {{
@@ -92,7 +118,10 @@ for i, a in enumerate(apps):
         icon_path = ROOT / a.get("icon", "")
         icon_html = ""
         if icon_path.exists():
-            icon_html = f'<img src="data:image/svg+xml;base64,{b64(icon_path)}" style="width:38px;height:38px;margin-right:10px;" />'
+            icon_html = (
+                f'<img src="data:image/svg+xml;base64,{b64(icon_path)}" '
+                f'style="width:38px;height:38px;margin-right:10px;" />'
+            )
         st.markdown(
             f"""<div class="card">
                 <div style="display:flex;align-items:center;gap:10px;">
