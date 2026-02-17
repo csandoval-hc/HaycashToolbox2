@@ -5,115 +5,109 @@ import base64
 from pathlib import Path
 
 import streamlit as st
-import streamlit as _stmod  # monkeypatch st.sidebar output for app controls
+import streamlit as _stmod
 
 from simple_auth import require_shared_password
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 
-# IMPORTANT: keep a reference to the real sidebar before monkeypatching
+# Reference to the real sidebar
 _REAL_SIDEBAR = st.sidebar
-
 
 def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
-
 def _inject_signature_css(logo_b64: str | None):
     logo_css = ""
     if logo_b64:
-        # Bigger logo, better fit
+        # Logo inside header: Bigger but contained
         logo_css = f"""
         .hc-topbar-logo {{
           background-image: url("data:image/jpg;base64,{logo_b64}");
           background-repeat: no-repeat;
           background-position: right center;
           background-size: contain;
-          width: 200px;       /* Adjusted for better scaling */
-          height: 80px;       
-          flex-shrink: 0;     /* Prevent logo from shrinking */
+          width: 280px;
+          height: 60px;
+          flex-shrink: 0;
         }}
         """
 
     st.markdown(
         f"""
         <style>
-          /* Consistent page width and spacing */
+          /* Prevent header cutoff and center content */
           .block-container {{
-            padding-top: 2rem;
-            padding-bottom: 2.5rem;
-            max-width: 95%;     /* Use percentage to avoid cutoff on smaller screens */
+            padding-top: 1.5rem;
+            padding-bottom: 2rem;
+            max-width: 95% !important;
           }}
 
-          /* Hide ONLY the default Streamlit nav, but keep sidebar visible */
+          /* Professional Sidebar Styling */
+          [data-testid="stSidebar"] {{
+            background-color: #fcfcfc;
+            border-right: 1px solid #eee;
+            min-width: 320px !important;
+          }}
+          
+          /* Hide Streamlit default nav items to keep it clean */
           [data-testid="stSidebarNav"] {{
             display: none !important;
-          }}
-
-          /* Sidebar styling */
-          section[data-testid="stSidebar"] {{
-            background-color: #f8f9fa;
-            border-right: 1px solid rgba(17, 24, 39, 0.08);
-            min-width: 300px !important;
           }}
 
           /* ===== Header: ONE unified blue bar ===== */
           .hc-topbar {{
             width: 100%;
             background: #314270;
-            border-radius: 14px;
-            padding: 20px 30px;
+            border-radius: 12px 12px 0 0;
+            padding: 18px 25px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
           }}
           .hc-topbar-left {{
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            overflow: hidden;
           }}
           .hc-topbar-title {{
             margin: 0;
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
             color: #ffffff;
-            line-height: 1.1;
+            letter-spacing: -0.5px;
           }}
           .hc-topbar-subtitle {{
             margin: 0;
-            font-size: 1.1rem;
-            color: rgba(255,255,255,0.9);
+            font-size: 1rem;
+            color: rgba(255,255,255,0.85);
           }}
           {logo_css}
 
           /* Accent line: yellow */
           .hc-accent {{
-            height: 5px;
-            width: 98%;
-            margin: -5px auto 25px auto;
-            border-radius: 0 0 10px 10px;
+            height: 4px;
+            width: 100%;
             background: #FFBA00;
-            z-index: 10;
+            border-radius: 0 0 12px 12px;
+            margin-bottom: 30px;
           }}
 
-          /* Professional buttons/inputs */
+          /* Input and Button Styling */
           .stButton > button {{
-            border-radius: 10px;
+            border-radius: 8px;
+            height: 3rem;
             font-weight: 600;
           }}
-          
-          /* Fix for container borders */
           div[data-testid="stVerticalBlockBorderWrapper"] {{
-            border-radius: 18px !important;
+            border-radius: 15px !important;
+            padding: 20px !important;
           }}
         </style>
         """,
         unsafe_allow_html=True,
     )
-
 
 def _safe_page_link(path: str, label: str):
     try:
@@ -121,15 +115,14 @@ def _safe_page_link(path: str, label: str):
     except Exception:
         st.caption(label)
 
-
 def _sidebar_nav():
-    # Write directly to the real sidebar
+    # Force navigation to stay in the SIDEBAR
     with _REAL_SIDEBAR:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
             st.image(str(logo), use_container_width=True)
 
-        st.markdown("### HayCash ToolBox")
+        st.markdown("## HayCash ToolBox")
         st.caption("NAVEGACIÓN PRINCIPAL")
         st.divider()
 
@@ -145,8 +138,7 @@ def _sidebar_nav():
         st.divider()
         if st.session_state.get("auth_ok"):
             user = st.session_state.get("auth_user") or "-"
-            st.info(f"Usuario: **{user}**")
-
+            st.caption(f"Usuario: **{user}**")
 
 def _signature_header(title: str, subtitle: str):
     st.markdown(
@@ -163,9 +155,8 @@ def _signature_header(title: str, subtitle: str):
         unsafe_allow_html=True,
     )
 
-
 # -----------------------------
-# Page setup
+# Execution
 # -----------------------------
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 require_shared_password()
@@ -180,15 +171,7 @@ _signature_header(
     subtitle="Generar Excel desde CSF/CFDI (SAT).",
 )
 
-# -----------------------------
-# KEY FIX: Redirect sidebar calls to a container in the main body
-# -----------------------------
-_controls_container = st.container(border=True)
-_stmod.sidebar = _controls_container
-
-# -----------------------------
-# Launch original app
-# -----------------------------
+# Launch original app logic
 APP_DIR = ROOT / "apps" / "cdf_isaac"
 os.chdir(APP_DIR)
 runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
