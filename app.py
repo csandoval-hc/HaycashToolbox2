@@ -25,7 +25,7 @@ st.set_page_config(
     page_title="HayCash Terminal",
     page_icon="💳",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # Changed to collapsed since we are hiding it
 )
 
 require_shared_password()
@@ -103,100 +103,47 @@ st.markdown(f"""
             background-attachment: fixed;
         }}
 
-        /* HIDE STREAMLIT CHROME (BUT KEEP CONTENT VISIBLE) */
+        /* HIDE STREAMLIT CHROME & SIDEBAR COMPLETELY */
         [data-testid="stSidebarNav"], 
         [data-testid="collapsedControl"],
+        [data-testid="stSidebar"],
         header[data-testid="stHeader"] {{
             display: none !important;
         }}
 
-        /* --- SIDEBAR: THE COMMAND TOWER --- */
-        section[data-testid="stSidebar"] {{
-            background-color: #06080C !important;
-            border-right: 1px solid #1E232F;
-            width: 300px !important;
-            padding-top: 0 !important;
-        }}
-        
-        /* LOGO CONTAINER */
-        .sidebar-logo-container {{
-            padding: 30px 20px;
-            text-align: center;
-            border-bottom: 1px solid #1E232F;
-            background: #06080C;
-            margin-bottom: 20px;
-        }}
-        .sidebar-logo {{
-            width: 100%;
-            max-width: 220px;
-            height: auto;
-            filter: drop-shadow(0 0 10px rgba(255,255,255,0.05));
-        }}
-
-        /* SIDEBAR LINKS */
-        .nav-header {{
-            color: #586578;
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            padding: 0 25px;
-            margin-bottom: 10px;
-        }}
-        
-        /* Sidebar Button Styling */
-        div.stButton > button {{
-            background: transparent !important;
-            border: 1px solid transparent !important;
-            color: #94A3B8 !important;
-            text-align: left !important;
-            padding: 12px 25px !important;
-            font-size: 0.95rem !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease-in-out;
-            border-radius: 0 !important;
-            margin: 0 !important;
-            width: 100%;
-            display: flex;
-            align-items: center;
-        }}
-        div.stButton > button:hover {{
-            background: #11151E !important;
-            color: #FFFFFF !important;
-            border-left: 3px solid #FFBA00 !important;
-            padding-left: 22px !important;
-        }}
-
         /* --- HERO SECTION --- */
         .block-container {{
-            padding-top: 2rem !important;
-            max-width: 1600px !important;
+            padding-top: 3rem !important;
+            max-width: 1400px !important;
         }}
         
         .dashboard-header {{
-            margin-bottom: 50px;
+            margin-bottom: 60px;
+            text-align: center; /* Centered for main dashboard impact */
         }}
         .welcome-eyebrow {{
             color: #FFBA00;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }}
         .welcome-title {{
             color: #FFFFFF;
-            font-size: 3.5rem;
+            font-size: 4rem;
             font-weight: 800;
             line-height: 1.1;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
         }}
         .welcome-subtitle {{
             color: #64748B;
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             font-weight: 400;
-            margin-top: 15px;
-            max-width: 600px;
+            margin-top: 20px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
         }}
 
         /* --- THE CARD GRID --- */
@@ -250,14 +197,14 @@ st.markdown(f"""
 
         .fin-card-title {{
             color: #FFF;
-            font-size: 1.25rem;
+            font-size: 1.35rem;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }}
 
         .fin-card-desc {{
             color: #64748B;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             line-height: 1.6;
             margin-bottom: 30px;
             flex-grow: 1;
@@ -281,73 +228,46 @@ st.markdown(f"""
         }}
         
         .system-status {{
-            float: right;
+            position: absolute;
+            top: 20px;
+            right: 20px;
             color: #64748B;
             font-size: 0.8rem;
             font-weight: 600;
             display: flex;
             align-items: center;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.03);
             padding: 8px 16px;
             border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }}
+
+        /* LOGO ON MAIN PAGE (Since sidebar is gone) */
+        .main-logo {{
+            width: 180px;
+            margin-bottom: 30px;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.1));
         }}
 
     </style>
 """, unsafe_allow_html=True)
 
-# --- 6. SIDEBAR CONSTRUCTION ---
-with st.sidebar:
-    # LOGO
-    if logo_b64:
-        st.markdown(f"""
-            <div class="sidebar-logo-container">
-                <img src="data:image/jpg;base64,{logo_b64}" class="sidebar-logo">
-            </div>
-        """, unsafe_allow_html=True)
-    
-    # NAVIGATION
-    st.markdown('<div class="nav-header">PLATAFORMA</div>', unsafe_allow_html=True)
-    st.button("🏠  Dashboard", key="nav_home", disabled=True)
 
-    st.markdown('<div class="nav-header" style="margin-top: 20px;">HERRAMIENTAS</div>', unsafe_allow_html=True)
-
-    # Dynamic Links
-    for app_id, page in PAGE_BY_ID.items():
-        raw_name = next((a.get("name") for a in apps if a.get("id") == app_id), app_id)
-        
-        # Icons
-        icon = "●"
-        if "CSF" in raw_name: icon = "🧾"
-        elif "BBVA" in raw_name: icon = "🏦"
-        elif "Leads" in raw_name: icon = "📊"
-        elif "Factoraje" in raw_name: icon = "💳"
-        elif "Edocat" in raw_name: icon = "📄"
-        elif "Consejo" in raw_name: icon = "📈"
-        elif "Contrato" in raw_name: icon = "📝"
-        
-        if st.button(f"{icon}  {raw_name}", key=f"side_{app_id}"):
-            safe_navigate(page, raw_name)
-
-    # Footer
-    st.markdown("""
-        <div style="position: fixed; bottom: 20px; left: 20px; color: #334155; font-size: 0.7rem;">
-            HayCash Secure Terminal<br>v2.5.0 • Live
-        </div>
-    """, unsafe_allow_html=True)
-
-
-# --- 7. MAIN DASHBOARD CONTENT ---
+# --- 6. MAIN DASHBOARD CONTENT ---
 
 # Status Indicator
 st.markdown("""
     <div class="system-status">
-        <span class="status-dot"></span> SYSTEM OPERATIONAL
+        <span class="status-dot"></span> SYSTEM ONLINE
     </div>
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown("""
+# Header Section (Centered)
+logo_html = f'<img src="data:image/jpg;base64,{logo_b64}" class="main-logo">' if logo_b64 else ""
+
+st.markdown(f"""
     <div class="dashboard-header">
+        {logo_html}
         <div class="welcome-eyebrow">HAYCASH TOOLBOX</div>
         <div class="welcome-title">Centro de Control</div>
         <div class="welcome-subtitle">
