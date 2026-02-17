@@ -1,11 +1,26 @@
 import base64
 import time
+import os
+import sys
 from pathlib import Path
 import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- 1. CORE CONFIGURATION (MUST BE FIRST) ---
+# --- 0. CRITICAL SAFETY LOCK (PREVENTS WHITE SCREEN) ---
+# This forces the app to always reset its brain to the main folder
+# before doing anything else.
+try:
+    PROJECT_ROOT = Path(__file__).resolve().parent
+    if os.getcwd() != str(PROJECT_ROOT):
+        os.chdir(PROJECT_ROOT)
+    # Ensure the root is in the python path so imports work
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+except Exception:
+    pass
+
+# --- 1. CORE CONFIGURATION ---
 st.set_page_config(
     page_title="HayCash Terminal",
     page_icon="💳",
@@ -15,8 +30,7 @@ st.set_page_config(
 
 require_shared_password()
 
-ROOT = Path(__file__).resolve().parent
-ASSETS = ROOT / "assets"
+ASSETS = PROJECT_ROOT / "assets"
 
 # --- 2. ASSET & LOGIC LOADING ---
 def b64(path: Path) -> str:
@@ -25,26 +39,33 @@ def b64(path: Path) -> str:
 
 def load_registry():
     try:
-        cfg_path = ROOT / "apps.yaml"
+        cfg_path = PROJECT_ROOT / "apps.yaml"
         if not cfg_path.exists(): return []
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
         return cfg.get("apps", [])
     except Exception as e:
-        st.error(f"System Registry Error: {e}")
+        st.error(f"Registry Error: {e}")
         return []
 
 def safe_navigate(page_path, app_name):
     """
-    Handles navigation with a visual loading indicator to prevent
-    the 'White Screen of Death' feeling.
+    Shows a loading spinner and handles the transition safely.
     """
     try:
-        # Visual feedback for the user
-        with st.spinner(f"Establishing secure connection to {app_name}..."):
-            time.sleep(0.5)  # Brief pause to let the user see the interaction
-            st.switch_page(page_path)
+        # 1. Visual Loading Indicator
+        with st.spinner(f"🚀 Initializing {app_name} protocol..."):
+            time.sleep(0.4)  # Small delay for visual feedback
+            
+        # 2. Force Directory Reset BEFORE switching
+        # This double-checks we are in the root before the jump
+        if os.getcwd() != str(PROJECT_ROOT):
+            os.chdir(PROJECT_ROOT)
+            
+        # 3. Go
+        st.switch_page(page_path)
+        
     except Exception as e:
-        st.error(f"Navigation Error: Could not load {app_name}. Path: {page_path}")
+        st.error(f"Navigation Failed: {e}")
 
 # --- 3. LOAD DATA ---
 apps = load_registry()
