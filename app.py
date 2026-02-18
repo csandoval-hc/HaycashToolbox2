@@ -7,9 +7,10 @@ import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- 0. CRITICAL PATH FIX (Anti-Crash System) ---
+# --- 0. CRITICAL SAFETY LOCK (Prevents FileNotFoundError) ---
+# This ensures the app always knows where "Home" is, preventing crashes.
 try:
-    # We resolve the absolute path of this file to find the true root
+    # Resolve the absolute path of this script to find the true root
     PROJECT_ROOT = Path(__file__).resolve().parent
     
     # Force the working directory to be the project root
@@ -19,9 +20,8 @@ try:
     # Add root to python path so imports work correctly
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-except Exception as e:
-    # If this fails, we log it but try to continue
-    print(f"Path initialization warning: {e}")
+except Exception:
+    # Fallback for unique environments
     PROJECT_ROOT = Path(".")
 
 # --- 1. CONFIGURATION ---
@@ -32,7 +32,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Auth check
 require_shared_password()
 
 ASSETS = PROJECT_ROOT / "assets"
@@ -57,23 +56,23 @@ def safe_navigate(page_path, app_name):
     Safely transitions to the new page, ensuring directories are reset.
     """
     try:
-        with st.spinner(f"Opening {app_name}..."):
-            time.sleep(0.2) # Premium feel delay
+        with st.spinner(f"Accessing {app_name}..."):
+            time.sleep(0.3) # Premium feel delay
         
-        # Double check directory before switching
+        # Double check directory before switching to prevent 'White Screen'
         if os.getcwd() != str(PROJECT_ROOT):
             os.chdir(PROJECT_ROOT)
             
         st.switch_page(page_path)
     except Exception as e:
-        st.error(f"Unable to launch {app_name}. Error: {e}")
+        st.error(f"Navigation Error: {e}")
 
 # --- 3. LOAD ASSETS ---
 apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
 # --- 4. NAVIGATION MAP ---
-# Ensure these files exist in your 'pages' folder
+# This maps your IDs to the actual file paths.
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -87,22 +86,24 @@ PAGE_BY_ID = {
 # --- 5. THE "CUPERTINO GLASS" ENGINE ---
 st.markdown(f"""
     <style>
+        /* FONTS */
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap');
 
-        /* RESET & WALLPAPER */
+        /* RESET */
         html, body, [class*="css"] {{
             font-family: 'SF Pro Display', 'Inter', sans-serif;
             background: #000000;
             color: white;
         }}
 
-        /* Deep Space Gradient Background */
+        /* WALLPAPER: Deep Space Gradient */
         .stApp {{
-            background: radial-gradient(circle at 50% -20%, #1a1f35 0%, #000000 60%);
+            background: radial-gradient(circle at 50% -20%, #1c1c2e 0%, #000000 70%);
             background-attachment: fixed;
         }}
 
         /* --- UI CLEANUP --- */
+        /* Completely hide the sidebar and header decoration */
         [data-testid="stSidebar"], 
         [data-testid="collapsedControl"], 
         section[data-testid="stSidebar"],
@@ -113,7 +114,7 @@ st.markdown(f"""
 
         /* --- LAYOUT --- */
         .block-container {{
-            padding-top: 6vh !important;
+            padding-top: 8vh !important;
             max-width: 1250px !important;
         }}
 
@@ -122,7 +123,7 @@ st.markdown(f"""
             display: flex;
             align-items: center;
             margin-bottom: 70px;
-            animation: fadeIn 1s ease-out;
+            animation: fadeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1);
         }}
         
         .logo-mark {{
@@ -130,6 +131,7 @@ st.markdown(f"""
             height: 72px;
             border-radius: 18px;
             box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
         }}
         
         .header-text {{
@@ -137,17 +139,17 @@ st.markdown(f"""
         }}
         
         .header-text h1 {{
-            font-size: 2.8rem;
+            font-size: 3rem;
             font-weight: 700;
             letter-spacing: -0.02em;
             margin: 0;
-            background: linear-gradient(180deg, #ffffff 0%, #94a3b8 100%);
+            background: linear-gradient(180deg, #ffffff 0%, #8b8b99 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }}
         
         .header-text p {{
-            color: #64748b;
+            color: #86868b;
             font-size: 1.1rem;
             margin: 6px 0 0 0;
             font-weight: 400;
@@ -169,17 +171,17 @@ st.markdown(f"""
             
             /* The Glass Effect */
             background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(40px);
-            -webkit-backdrop-filter: blur(40px);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            border-radius: 28px;
+            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+            border-radius: 32px;
             
             /* Text Styling */
-            color: #f4f4f5;
+            color: #f5f5f7;
             font-size: 1.3rem;
             font-weight: 600;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             
             /* Animation Physics */
             transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -188,34 +190,36 @@ st.markdown(f"""
             cursor: pointer;
         }}
         
-        /* HOVER: Moving Rainbow Border */
+        /* HOVER: The Running Lights (Rainbow Border) */
         div.stButton > button::before {{
             content: "";
             position: absolute;
             top: 50%; left: 50%;
             width: 200%; height: 200%;
-            background: conic-gradient(from 0deg, transparent 0deg, #FFBA00 90deg, transparent 180deg);
+            /* The Spinning Gradient */
+            background: conic-gradient(from 0deg, transparent 0deg, #FFBA00 50deg, transparent 100deg);
             transform: translate(-50%, -50%) rotate(0deg);
             opacity: 0;
-            transition: opacity 0.4s ease;
+            transition: opacity 0.5s ease;
             z-index: -1;
             pointer-events: none;
         }}
 
-        /* Inner background to hide the center of the conical gradient */
+        /* Inner background to mask the center of the gradient */
         div.stButton > button::after {{
             content: "";
             position: absolute;
             inset: 1.5px; /* Border thickness */
-            background: rgba(15, 15, 20, 0.85); 
-            border-radius: 28px;
+            background: rgba(20, 20, 25, 0.95); 
+            border-radius: 32px;
             z-index: -1;
         }}
 
+        /* Hover State */
         div.stButton > button:hover {{
             transform: scale(1.02) translateY(-5px);
-            box-shadow: 0 30px 60px -12px rgba(0,0,0,0.7);
-            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 30px 60px -12px rgba(0,0,0,0.5);
+            border-color: rgba(255,255,255,0.15);
         }}
         
         div.stButton > button:hover::before {{
@@ -285,7 +289,7 @@ for i, a in enumerate(apps):
             if target:
                 safe_navigate(target, name)
             else:
-                st.error("Module path not configured.")
+                st.error(f"Module '{name}' not linked.")
         
         st.write("") # Layout spacer
         st.write("")
