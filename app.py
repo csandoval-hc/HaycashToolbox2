@@ -7,26 +7,20 @@ import streamlit as st
 import yaml
 
 # --- 0. CRITICAL SYSTEM SETUP ---
-# This ensures the app always runs from the correct root folder
 try:
-    # 1. Identify where this file (app.py) is located
     CURRENT_FILE = Path(__file__).resolve()
     PROJECT_ROOT = CURRENT_FILE.parent
 
-    # 2. Force the working directory to match
     if os.getcwd() != str(PROJECT_ROOT):
         os.chdir(PROJECT_ROOT)
 
-    # 3. Add to Python path so imports like 'simple_auth' work
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
 except Exception as e:
-    # Fallback if filesystem is locked (rare)
     print(f"Init Warning: {e}")
     PROJECT_ROOT = Path(".")
 
-# IMPORTANT FIX: import AFTER sys.path is corrected (prevents white screen/crash)
 from simple_auth import require_shared_password
 
 # --- 1. APP CONFIGURATION ---
@@ -41,13 +35,11 @@ ASSETS = PROJECT_ROOT / "assets"
 
 # --- 2. CORE UTILITIES ---
 def b64(path: Path) -> str:
-    """Converts an image file to a base64 string for HTML embedding."""
     if not path.exists(): 
         return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
 def load_registry():
-    """Loads the list of available apps from apps.yaml."""
     try:
         cfg_path = PROJECT_ROOT / "apps.yaml"
         if not cfg_path.exists():
@@ -58,34 +50,23 @@ def load_registry():
         return []
 
 def safe_navigate(page_path, app_name):
-    """
-    Handles the transition to a sub-app safely.
-    """
     try:
         with st.spinner(f"Accessing {app_name}..."):
-            time.sleep(0.3)  # Cinematic delay
-
-        # Double check we are anchored at root before jumping
+            time.sleep(0.3) 
         if os.getcwd() != str(PROJECT_ROOT):
             os.chdir(PROJECT_ROOT)
-
-        # IMPORTANT FIX: prevent blank/failed transitions if the page file is missing
         target_file = (PROJECT_ROOT / page_path).resolve()
         if not target_file.exists():
             st.error(f"Missing page file: {page_path}")
             return
-
         st.switch_page(page_path)
-
     except Exception as e:
         st.error(f"Navigation Error: {e}")
-        st.exception(e)
 
 # Authentication Barrier
 require_shared_password()
 
-# --- LOGIN TRANSITION ANIMATION (overlay only) ---
-# Shows once per session after auth, then disappears.
+# --- LOGIN TRANSITION ANIMATION (HIGH-FIDELITY OVERHAUL) ---
 if "login_splash_done" not in st.session_state:
     st.session_state["login_splash_done"] = False
 
@@ -106,75 +87,76 @@ if authed and not st.session_state["login_splash_done"]:
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: hcFadeOut 0.65s ease forwards;
-            animation-delay: 1.35s;
+            animation: hcScreenExit 0.8s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+            animation-delay: 2.2s;
           }}
 
           .hc-splash-inner {{
+            position: relative;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 18px;
+            justify-content: center;
+            width: 300px;
+            height: 300px;
           }}
 
-          /* Blue spinning ball */
+          /* The Quantum Orb: Multi-layered glow */
           .hc-orb {{
-            width: 92px;
-            height: 92px;
-            border-radius: 999px;
-            background: radial-gradient(circle at 30% 30%, #6fb3ff 0%, #1a6dff 45%, #0030a8 100%);
-            box-shadow: 0 0 35px rgba(26,109,255,0.45);
-            animation: hcSpin 1.0s linear infinite, hcOrbToLogo 0.55s ease forwards;
-            animation-delay: 0s, 0.95s;
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 
+                0 0 20px #fff,
+                0 0 40px #1a6dff,
+                0 0 80px #1a6dff;
+            animation: 
+                hcOrbPulse 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite,
+                hcOrbImplode 0.6s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards;
+            animation-delay: 0s, 1.4s;
           }}
 
-          /* Logo reveal */
           .hc-logo {{
-            width: 120px;
-            height: 120px;
-            border-radius: 22px;
+            width: 140px;
+            height: 140px;
+            border-radius: 30px;
             background-image: url("data:image/jpg;base64,{logo_b64_local}");
             background-size: cover;
             background-position: center;
             opacity: 0;
-            transform: scale(0.75);
-            animation: hcLogoIn 0.45s ease forwards;
-            animation-delay: 1.05s;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.55);
-            border: 1px solid rgba(255,255,255,0.10);
+            transform: scale(0.5) translateY(20px);
+            filter: blur(10px);
+            animation: hcLogoReveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            animation-delay: 1.6s;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.2);
           }}
 
-          /* Hide logo element if we don't have it */
-          .hc-logo.hc-nologo {{
-            display: none;
+          @keyframes hcOrbPulse {{
+            0%, 100% {{ transform: scale(1); opacity: 1; filter: brightness(1); }}
+            50% {{ transform: scale(1.1); opacity: 0.8; filter: brightness(1.4); }}
           }}
 
-          @keyframes hcSpin {{
-            from {{ transform: rotate(0deg); }}
-            to {{ transform: rotate(360deg); }}
+          @keyframes hcOrbImplode {{
+            0% {{ transform: scale(1); filter: blur(0px); }}
+            100% {{ transform: scale(0); filter: blur(20px); opacity: 0; }}
           }}
 
-          /* Orb shrinks/disappears as logo appears */
-          @keyframes hcOrbToLogo {{
-            to {{
-              transform: scale(0.35);
-              opacity: 0;
-              filter: blur(2px);
-            }}
-          }}
-
-          @keyframes hcLogoIn {{
+          @keyframes hcLogoReveal {{
             to {{
               opacity: 1;
-              transform: scale(1);
+              transform: scale(1) translateY(0);
+              filter: blur(0px);
             }}
           }}
 
-          @keyframes hcFadeOut {{
+          @keyframes hcScreenExit {{
             to {{
-              opacity: 0;
+              background: transparent;
+              backdrop-filter: blur(0px);
+              transform: translateY(-100%);
               pointer-events: none;
-              visibility: hidden;
             }}
           }}
         </style>
@@ -182,14 +164,12 @@ if authed and not st.session_state["login_splash_done"]:
         <div class="hc-splash">
           <div class="hc-splash-inner">
             <div class="hc-orb"></div>
-            <div class="hc-logo {'hc-nologo' if not logo_b64_local else ''}"></div>
+            <div class="hc-logo"></div>
           </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-    # Mark as shown so it doesn't repeat on every rerun
     st.session_state["login_splash_done"] = True
 
 # --- 3. LOAD DATA & ASSETS ---
@@ -197,7 +177,6 @@ apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
 # --- 4. NAVIGATION MAP ---
-# This links the ID in apps.yaml to the actual physical file
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -208,49 +187,45 @@ PAGE_BY_ID = {
     "lector_contrato": "pages/07_lector_contrato.py",
 }
 
-# --- 5. THE CUPERTINO GLASS ENGINE (CSS) ---
+# --- 5. THE CUPERTINO GLASS ENGINE (REFINED PHYSICS) ---
 st.markdown(f"""
     <style>
-        /* Fonts */
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap');
 
-        /* Global Reset */
         html, body, [class*="css"] {{
             font-family: 'SF Pro Display', 'Inter', sans-serif;
             background: #000000;
             color: white;
         }}
 
-        /* Wallpaper: Deep Space Gradient */
         .stApp {{
             background: radial-gradient(circle at 50% -20%, #1c1c2e 0%, #000000 70%);
             background-attachment: fixed;
         }}
 
-        /* --- UI CLEANUP --- */
-        /* Hides Sidebar & Default Header */
-        [data-testid="stSidebar"], 
-        [data-testid="collapsedControl"], 
-        section[data-testid="stSidebar"],
-        header[data-testid="stHeader"] {{
+        [data-testid="stSidebar"], [data-testid="collapsedControl"], header[data-testid="stHeader"] {{
             display: none !important;
-            visibility: hidden !important;
         }}
 
-        /* --- LAYOUT --- */
         .block-container {{
             padding-top: 8vh !important;
             max-width: 1250px !important;
         }}
 
-        /* --- HEADER --- */
+        /* --- STAGGERED ENTRANCE ANIMATION --- */
         .apple-header {{
             display: flex;
             align-items: center;
             margin-bottom: 70px;
-            animation: fadeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+            animation: slideUpFade 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+            animation-delay: 2.5s; /* Wait for splash */
         }}
         
+        @keyframes slideUpFade {{
+            from {{ opacity: 0; transform: translateY(30px); filter: blur(10px); }}
+            to {{ opacity: 1; transform: translateY(0); filter: blur(0px); }}
+        }}
+
         .logo-mark {{
             width: 72px;
             height: 72px;
@@ -259,30 +234,17 @@ st.markdown(f"""
             border: 1px solid rgba(255,255,255,0.1);
         }}
         
-        .header-text {{
-            margin-left: 24px;
-        }}
-        
         .header-text h1 {{
             font-size: 3rem;
             font-weight: 700;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.04em;
             margin: 0;
-            background: linear-gradient(180deg, #ffffff 0%, #8b8b99 100%);
+            background: linear-gradient(180deg, #ffffff 0%, #a1a1a6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }}
-        
-        .header-text p {{
-            color: #86868b;
-            font-size: 1.1rem;
-            margin: 6px 0 0 0;
-            font-weight: 400;
-        }}
 
-        /* --- LIQUID GLASS CARDS (BUTTONS) --- */
-        
-        /* Reset Streamlit button defaults completely */
+        /* --- BUTTONS: GLASSMORPHISM 2.0 --- */
         div.stButton > button {{
             all: unset; 
             width: 100%;
@@ -293,81 +255,36 @@ st.markdown(f"""
             justify-content: center;
             padding: 35px;
             box-sizing: border-box;
-            
-            /* The Glass Effect */
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(40px) saturate(180%);
-            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
             border-radius: 32px;
-            
-            /* Typography */
             color: #f5f5f7;
             font-size: 1.3rem;
             font-weight: 600;
-            letter-spacing: 0.3px;
-            
-            /* Animation Physics */
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
             overflow: hidden;
-            cursor: pointer;
-        }}
-        
-        /* HOVER: The Running Lights (Rainbow Border) */
-        div.stButton > button::before {{
-            content: "";
-            position: absolute;
-            top: 50%; left: 50%;
-            width: 200%; height: 200%;
-            /* The Spinning Gradient */
-            background: conic-gradient(from 0deg, transparent 0deg, #FFBA00 50deg, transparent 100deg);
-            transform: translate(-50%, -50%) rotate(0deg);
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            z-index: -1;
-            pointer-events: none;
+            animation: slideUpFade 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }}
 
-        /* Inner background to mask the center of the gradient */
-        div.stButton > button::after {{
-            content: "";
-            position: absolute;
-            inset: 1.5px; /* Border thickness */
-            background: rgba(20, 20, 25, 0.95); 
-            border-radius: 32px;
-            z-index: -1;
-        }}
+        /* Individual button stagger */
+        div.stButton:nth-child(1) > button {{ animation-delay: 2.6s; }}
+        div.stButton:nth-child(2) > button {{ animation-delay: 2.7s; }}
+        div.stButton:nth-child(3) > button {{ animation-delay: 2.8s; }}
 
-        /* Hover State */
         div.stButton > button:hover {{
-            transform: scale(1.02) translateY(-5px);
-            box-shadow: 0 30px 60px -12px rgba(0,0,0,0.5);
-            border-color: rgba(255,255,255,0.15);
-        }}
-        
-        div.stButton > button:hover::before {{
-            opacity: 1;
-            animation: rotate 4s linear infinite;
+            transform: scale(1.03) translateY(-8px);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.6);
         }}
 
-        /* Text Alignment Fix */
-        div.stButton > button p {{
-            margin: 0;
-            text-align: left;
-            width: 100%;
-            line-height: 1.4;
-        }}
-
-        @keyframes rotate {{
-            from {{ transform: translate(-50%, -50%) rotate(0deg); }}
-            to {{ transform: translate(-50%, -50%) rotate(360deg); }}
-        }}
-        
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(20px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
+        /* Subtle "Active" Press Effect */
+        div.stButton > button:active {{
+            transform: scale(0.97);
+            transition: 0.1s;
         }}
 
     </style>
@@ -376,27 +293,21 @@ st.markdown(f"""
 # --- 6. RENDER HEADER ---
 logo_img = f'<img src="data:image/jpg;base64,{logo_b64}" class="logo-mark">' if logo_b64 else ""
 
-# OPTIONAL HARDENING: prevent silent "white screen" on render-time errors
 try:
     st.markdown(f"""
         <div class="apple-header">
             {logo_img}
-            <div class="header-text">
+            <div class="header-text" style="margin-left:24px;">
                 <h1>HayCash ToolBox</h1>
-                <p>Select an application to launch secure protocol.</p>
+                <p style="color:#86868b; font-size:1.1rem; margin:6px 0;">Intelligence Layer 1.0</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 7. RENDER GLASS CARDS ---
     cols = st.columns(3)
-
     for i, a in enumerate(apps):
         col = cols[i % 3]
-
         name = a.get("name", "App")
-
-        # Icons: Using large emojis/chars for instant visual recognition inside the button
         icon = "⚡"
         if "CSF" in name: icon = "🧾"
         elif "BBVA" in name: icon = "🏦"
@@ -407,20 +318,13 @@ try:
         elif "Contrato" in name: icon = "📝"
 
         with col:
-            # Card Layout: Icon on top, Name below
             label_text = f"{icon}  \n\n{name}"
-
-            # The Button IS the Card
             if st.button(label_text, key=f"app_{a.get('id')}"):
                 target = PAGE_BY_ID.get(a.get("id"))
                 if target:
                     safe_navigate(target, name)
-                else:
-                    st.error(f"Module '{name}' not linked.")
-
-            st.write("")  # Layout spacer
-            st.write("")
+            st.write("") 
 
 except Exception as e:
-    st.error("App crashed while rendering.")
+    st.error("UI Render Exception")
     st.exception(e)
