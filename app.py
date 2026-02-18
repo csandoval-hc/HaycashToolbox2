@@ -7,24 +7,27 @@ import streamlit as st
 import yaml
 from simple_auth import require_shared_password
 
-# --- 0. CRITICAL SAFETY LOCK (Prevents FileNotFoundError) ---
-# This ensures the app always knows where "Home" is, preventing crashes.
+# --- 0. CRITICAL SYSTEM SETUP ---
+# This ensures the app always runs from the correct root folder
 try:
-    # Resolve the absolute path of this script to find the true root
-    PROJECT_ROOT = Path(__file__).resolve().parent
+    # 1. Identify where this file (app.py) is located
+    CURRENT_FILE = Path(__file__).resolve()
+    PROJECT_ROOT = CURRENT_FILE.parent
     
-    # Force the working directory to be the project root
+    # 2. Force the working directory to match
     if os.getcwd() != str(PROJECT_ROOT):
         os.chdir(PROJECT_ROOT)
         
-    # Add root to python path so imports work correctly
+    # 3. Add to Python path so imports like 'simple_auth' work
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-except Exception:
-    # Fallback for unique environments
+        
+except Exception as e:
+    # Fallback if filesystem is locked (rare)
+    print(f"Init Warning: {e}")
     PROJECT_ROOT = Path(".")
 
-# --- 1. CONFIGURATION ---
+# --- 1. APP CONFIGURATION ---
 st.set_page_config(
     page_title="HayCash ToolBox",
     page_icon="💎",
@@ -32,16 +35,19 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Authentication Barrier
 require_shared_password()
 
 ASSETS = PROJECT_ROOT / "assets"
 
-# --- 2. LOGIC ---
+# --- 2. CORE UTILITIES ---
 def b64(path: Path) -> str:
+    """Converts an image file to a base64 string for HTML embedding."""
     if not path.exists(): return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
 def load_registry():
+    """Loads the list of available apps from apps.yaml."""
     try:
         cfg_path = PROJECT_ROOT / "apps.yaml"
         if not cfg_path.exists(): 
@@ -53,13 +59,13 @@ def load_registry():
 
 def safe_navigate(page_path, app_name):
     """
-    Safely transitions to the new page, ensuring directories are reset.
+    Handles the transition to a sub-app safely.
     """
     try:
         with st.spinner(f"Accessing {app_name}..."):
-            time.sleep(0.3) # Premium feel delay
+            time.sleep(0.3) # Cinematic delay
         
-        # Double check directory before switching to prevent 'White Screen'
+        # Double check we are anchored at root before jumping
         if os.getcwd() != str(PROJECT_ROOT):
             os.chdir(PROJECT_ROOT)
             
@@ -67,12 +73,12 @@ def safe_navigate(page_path, app_name):
     except Exception as e:
         st.error(f"Navigation Error: {e}")
 
-# --- 3. LOAD ASSETS ---
+# --- 3. LOAD DATA & ASSETS ---
 apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
 # --- 4. NAVIGATION MAP ---
-# This maps your IDs to the actual file paths.
+# This links the ID in apps.yaml to the actual physical file
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -83,27 +89,27 @@ PAGE_BY_ID = {
     "lector_contrato": "pages/07_lector_contrato.py",
 }
 
-# --- 5. THE "CUPERTINO GLASS" ENGINE ---
+# --- 5. THE CUPERTINO GLASS ENGINE (CSS) ---
 st.markdown(f"""
     <style>
-        /* FONTS */
+        /* Fonts */
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap');
 
-        /* RESET */
+        /* Global Reset */
         html, body, [class*="css"] {{
             font-family: 'SF Pro Display', 'Inter', sans-serif;
             background: #000000;
             color: white;
         }}
 
-        /* WALLPAPER: Deep Space Gradient */
+        /* Wallpaper: Deep Space Gradient */
         .stApp {{
             background: radial-gradient(circle at 50% -20%, #1c1c2e 0%, #000000 70%);
             background-attachment: fixed;
         }}
 
         /* --- UI CLEANUP --- */
-        /* Completely hide the sidebar and header decoration */
+        /* Hides Sidebar & Default Header */
         [data-testid="stSidebar"], 
         [data-testid="collapsedControl"], 
         section[data-testid="stSidebar"],
@@ -177,7 +183,7 @@ st.markdown(f"""
             box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
             border-radius: 32px;
             
-            /* Text Styling */
+            /* Typography */
             color: #f5f5f7;
             font-size: 1.3rem;
             font-weight: 600;
@@ -280,10 +286,10 @@ for i, a in enumerate(apps):
     elif "Contrato" in name: icon = "📝"
 
     with col:
-        # We format the button text to look like a card: Icon on top, Name below
-        # \n\n creates the vertical spacing
+        # Card Layout: Icon on top, Name below
         label_text = f"{icon}  \n\n{name}"
         
+        # The Button IS the Card
         if st.button(label_text, key=f"app_{a.get('id')}"):
             target = PAGE_BY_ID.get(a.get("id"))
             if target:
