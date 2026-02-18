@@ -37,9 +37,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Authentication Barrier
-require_shared_password()
-
 ASSETS = PROJECT_ROOT / "assets"
 
 # --- 2. CORE UTILITIES ---
@@ -83,6 +80,117 @@ def safe_navigate(page_path, app_name):
     except Exception as e:
         st.error(f"Navigation Error: {e}")
         st.exception(e)
+
+# Authentication Barrier
+require_shared_password()
+
+# --- LOGIN TRANSITION ANIMATION (overlay only) ---
+# Shows once per session after auth, then disappears.
+if "login_splash_done" not in st.session_state:
+    st.session_state["login_splash_done"] = False
+
+authed = bool(st.session_state.get("auth_ok"))
+
+if authed and not st.session_state["login_splash_done"]:
+    logo_path = ASSETS / "haycash_logo.jpg"
+    logo_b64_local = b64(logo_path) if logo_path.exists() else ""
+
+    st.markdown(
+        f"""
+        <style>
+          .hc-splash {{
+            position: fixed;
+            inset: 0;
+            background: #000000;
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: hcFadeOut 0.65s ease forwards;
+            animation-delay: 1.35s;
+          }}
+
+          .hc-splash-inner {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+          }}
+
+          /* Blue spinning ball */
+          .hc-orb {{
+            width: 92px;
+            height: 92px;
+            border-radius: 999px;
+            background: radial-gradient(circle at 30% 30%, #6fb3ff 0%, #1a6dff 45%, #0030a8 100%);
+            box-shadow: 0 0 35px rgba(26,109,255,0.45);
+            animation: hcSpin 1.0s linear infinite, hcOrbToLogo 0.55s ease forwards;
+            animation-delay: 0s, 0.95s;
+          }}
+
+          /* Logo reveal */
+          .hc-logo {{
+            width: 120px;
+            height: 120px;
+            border-radius: 22px;
+            background-image: url("data:image/jpg;base64,{logo_b64_local}");
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transform: scale(0.75);
+            animation: hcLogoIn 0.45s ease forwards;
+            animation-delay: 1.05s;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+            border: 1px solid rgba(255,255,255,0.10);
+          }}
+
+          /* Hide logo element if we don't have it */
+          .hc-logo.hc-nologo {{
+            display: none;
+          }}
+
+          @keyframes hcSpin {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
+          }}
+
+          /* Orb shrinks/disappears as logo appears */
+          @keyframes hcOrbToLogo {{
+            to {{
+              transform: scale(0.35);
+              opacity: 0;
+              filter: blur(2px);
+            }}
+          }}
+
+          @keyframes hcLogoIn {{
+            to {{
+              opacity: 1;
+              transform: scale(1);
+            }}
+          }}
+
+          @keyframes hcFadeOut {{
+            to {{
+              opacity: 0;
+              pointer-events: none;
+              visibility: hidden;
+            }}
+          }}
+        </style>
+
+        <div class="hc-splash">
+          <div class="hc-splash-inner">
+            <div class="hc-orb"></div>
+            <div class="hc-logo {'hc-nologo' if not logo_b64_local else ''}"></div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Mark as shown so it doesn't repeat on every rerun
+    st.session_state["login_splash_done"] = True
 
 # --- 3. LOAD DATA & ASSETS ---
 apps = load_registry()
