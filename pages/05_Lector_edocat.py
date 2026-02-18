@@ -34,6 +34,11 @@ def _inject_signature_css(logo_b64: str | None):
     st.markdown(
         f"""
         <style>
+          /* FIX: Force white background everywhere (prevents yellow tint) */
+          html, body, .stApp {{
+            background-color: #ffffff !important;
+          }}
+
           /* Fix page width to prevent header cutoff */
           .block-container {{
             padding-top: 1.5rem !important;
