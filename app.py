@@ -190,7 +190,6 @@ if authed and not st.session_state["login_splash_done"]:
 
           /* --- ANIMATION KEYFRAMES --- */
           
-          /* 3D Spinning */
           @keyframes hcSpin3D {{
             0% {{ transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }}
             100% {{ transform: rotateX(360deg) rotateY(180deg) rotateZ(360deg); }}
@@ -216,15 +215,13 @@ if authed and not st.session_state["login_splash_done"]:
             to {{ opacity: 0.7; letter-spacing: 6px; }}
           }}
 
-          /* The Big Bang: Core collapses then explodes */
           @keyframes hcCoreExplode {{
             0% {{ transform: scale(1); filter: brightness(1); }}
-            40% {{ transform: scale(0.1); filter: brightness(5); }} /* Implode */
-            50% {{ transform: scale(0.1); filter: brightness(10); opacity: 1; }} /* Critical Mass */
-            100% {{ transform: scale(20); filter: blur(20px); opacity: 0; }} /* Big Bang */
+            40% {{ transform: scale(0.1); filter: brightness(5); }}
+            50% {{ transform: scale(0.1); filter: brightness(10); opacity: 1; }}
+            100% {{ transform: scale(20); filter: blur(20px); opacity: 0; }}
           }}
 
-          /* The Curtain Lift */
           @keyframes hcVoidVanish {{
             0% {{ opacity: 1; transform: scale(1); }}
             100% {{ opacity: 0; transform: scale(1.2); pointer-events: none; visibility: hidden; }}
@@ -244,7 +241,6 @@ if authed and not st.session_state["login_splash_done"]:
         unsafe_allow_html=True,
     )
 
-    # Mark as shown so it doesn't repeat on every rerun
     st.session_state["login_splash_done"] = True
 
 # --- 3. LOAD DATA & ASSETS ---
@@ -252,7 +248,6 @@ apps = load_registry()
 logo_b64 = b64(ASSETS / "haycash_logo.jpg")
 
 # --- 4. NAVIGATION MAP ---
-# This links the ID in apps.yaml to the actual physical file
 PAGE_BY_ID = {
     "cdf_isaac": "pages/01_Lector_CSF.py",
     "diegobbva": "pages/02_CSV_a_TXT_BBVA.py",
@@ -266,10 +261,8 @@ PAGE_BY_ID = {
 # --- 5. THE CUPERTINO GLASS ENGINE (ULTRA-PREMIUM) ---
 st.markdown(f"""
     <style>
-        /* Fonts */
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700;800&family=Inter:wght@400;600&display=swap');
 
-        /* Global Reset */
         html, body, [class*="css"] {{
             font-family: 'SF Pro Display', 'Inter', sans-serif;
             background: #050505;
@@ -277,7 +270,6 @@ st.markdown(f"""
             overflow-x: hidden;
         }}
 
-        /* --- THE DEEP SPACE BACKGROUND (CSS STARS) --- */
         .stApp {{
             background: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #000000 80%);
             background-attachment: fixed;
@@ -304,7 +296,6 @@ st.markdown(f"""
             to {{ transform: translateY(-550px); }}
         }}
 
-        /* --- UI CLEANUP --- */
         [data-testid="stSidebar"], 
         [data-testid="collapsedControl"], 
         section[data-testid="stSidebar"],
@@ -313,7 +304,6 @@ st.markdown(f"""
             visibility: hidden !important;
         }}
 
-        /* --- LAYOUT --- */
         .block-container {{
             padding-top: 8vh !important;
             max-width: 1250px !important;
@@ -321,15 +311,13 @@ st.markdown(f"""
             z-index: 10;
         }}
 
-        /* --- HEADER --- */
         .apple-header {{
             display: flex;
             align-items: center;
             margin-bottom: 90px;
-            /* Entrance Logic */
             opacity: 0;
             animation: heroEntrance 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-            animation-delay: 3.6s; /* Wait for Splash */
+            animation-delay: 3.6s;
         }}
         
         .logo-mark {{
@@ -345,8 +333,8 @@ st.markdown(f"""
         }}
         
         .header-text h1 {{
-            font-size: 5rem; /* EXECUTIVE SIZE */
-            font-weight: 800; /* Extra Bold */
+            font-size: 5rem;
+            font-weight: 800;
             letter-spacing: -2px; 
             margin: 0;
             background: linear-gradient(135deg, #ffffff 10%, #a1a1aa 100%);
@@ -355,29 +343,22 @@ st.markdown(f"""
             text-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }}
         
-        /* SUBTITLE REMOVED COMPLETELY */
-
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* 1. Base Container - FORCED SYMMETRY */
+        /* PERFECTLY SYMMETRICAL SQUARE CARDS */
         div.stButton > button {{
             all: unset; 
             width: 100% !important; 
-            
-            /* CRITICAL: Hard-coded dimensions for perfect symmetry */
-            height: 240px !important; 
-            min-height: 240px !important;
-            max-height: 240px !important;
-            
+            aspect-ratio: 1 / 1 !important;
+            height: auto !important;
+            min-height: unset !important;
+            max-height: unset !important;
             display: flex;
             flex-direction: column;
-            
-            /* Align content from the TOP so icons are always level */
             justify-content: flex-start; 
             padding-top: 40px !important;
             padding-left: 30px !important;
             padding-right: 30px !important;
-            
             box-sizing: border-box;
             background: transparent;
             border: none;
@@ -388,48 +369,40 @@ st.markdown(f"""
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }}
         
-        /* Staggered Entry for Cards */
         div.stButton:nth-of-type(1) > button {{ animation-delay: 3.7s; }}
         div.stButton:nth-of-type(2) > button {{ animation-delay: 3.8s; }}
         div.stButton:nth-of-type(3) > button {{ animation-delay: 3.9s; }}
         div.stButton:nth-of-type(4) > button {{ animation-delay: 4.0s; }}
         div.stButton:nth-of-type(5) > button {{ animation-delay: 4.1s; }}
 
-        /* 2. THE ROTATING LIGHTS (ON HOVER) - Bottom Layer (Layer 0) */
         div.stButton > button::before {{
             content: "";
             position: absolute;
             top: 50%; left: 50%;
             width: 200%; height: 200%;
-            /* The Spinning Conic Gradient */
             background: conic-gradient(from 0deg, transparent 0%, #007aff 20%, #ffffff 40%, transparent 60%);
             transform: translate(-50%, -50%);
-            z-index: 0; /* Behind the glass body */
-            opacity: 0; /* Hidden by default */
+            z-index: 0;
+            opacity: 0;
             transition: opacity 0.5s ease;
             pointer-events: none;
         }}
         
-        /* Hover Interaction: Ignite the lights */
         div.stButton > button:hover::before {{
             opacity: 1;
             animation: rotateBorder 3s linear infinite;
         }}
 
-        /* 3. THE GLASS BODY & AUTOMATIC SHEEN - Middle Layer (Layer 1) */
         div.stButton > button::after {{
             content: "";
             position: absolute;
-            /* Inset by 2px to allow the Rotating Lights (Layer 0) to act as a border */
             inset: 2px; 
-            border-radius: 22px; /* Matches button radius minus border width */
-            background: rgba(20, 20, 30, 0.6); /* Deep Glass */
+            border-radius: 22px;
+            background: rgba(20, 20, 30, 0.6);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
             z-index: 1;
-            
-            /* THE PERIODIC SHEEN (Background Image Gradient) */
             background-image: linear-gradient(
                 120deg, 
                 transparent 30%, 
@@ -439,18 +412,15 @@ st.markdown(f"""
                 transparent 70%
             );
             background-size: 250% 100%;
-            background-position: 200% 0; /* Start off-screen right */
-            
-            /* Continuous "Living" Animation */
+            background-position: 200% 0;
             animation: periodicSheen 6s ease-in-out infinite;
         }}
 
-        /* 4. TEXT CONTENT - Top Layer (Layer 2) */
         div.stButton > button p {{
             position: relative;
             z-index: 2;
             color: #f5f5f7;
-            font-size: 1.5rem; /* Slightly larger text */
+            font-size: 1.5rem;
             font-weight: 600;
             letter-spacing: 0.3px;
             margin: 0;
@@ -458,20 +428,17 @@ st.markdown(f"""
             width: 100%;
             line-height: 1.3;
             pointer-events: none;
-            margin-top: 15px; /* Spacer between Icon and Text */
+            margin-top: 15px;
         }}
         
-        /* Hover State for Body (Scale Up) */
         div.stButton > button:hover {{
             transform: translateY(-8px) scale(1.02);
-            /* No background change here, we rely on ::after */
         }}
         
         div.stButton > button:hover::after {{
-             background-color: rgba(30, 30, 45, 0.7); /* Slightly lighter glass on hover */
+             background-color: rgba(30, 30, 45, 0.7);
         }}
 
-        /* ANIMATIONS */
         @keyframes heroEntrance {{
             from {{ opacity: 0; transform: translateY(20px); filter: blur(10px); }}
             to {{ opacity: 1; transform: translateY(0); filter: blur(0px); }}
@@ -488,9 +455,9 @@ st.markdown(f"""
         }}
 
         @keyframes periodicSheen {{
-            0% {{ background-position: 200% 0; }} /* Off screen right */
-            20% {{ background-position: -100% 0; }} /* Sweep to left */
-            100% {{ background-position: -100% 0; }} /* Wait (Pause) */
+            0% {{ background-position: 200% 0; }}
+            20% {{ background-position: -100% 0; }}
+            100% {{ background-position: -100% 0; }}
         }}
 
     </style>
@@ -499,7 +466,6 @@ st.markdown(f"""
 # --- 6. RENDER HEADER ---
 logo_img = f'<img src="data:image/jpg;base64,{logo_b64}" class="logo-mark">' if logo_b64 else ""
 
-# OPTIONAL HARDENING: prevent silent "white screen" on render-time errors
 try:
     st.markdown(f"""
         <div class="apple-header">
@@ -518,7 +484,6 @@ try:
 
         name = a.get("name", "App")
 
-        # Icons: Using large emojis/chars for instant visual recognition inside the button
         icon = "⚡"
         if "CSF" in name: icon = "🧾"
         elif "BBVA" in name: icon = "🏦"
@@ -529,10 +494,8 @@ try:
         elif "Contrato" in name: icon = "📝"
 
         with col:
-            # Card Layout: Icon on top, Name below
             label_text = f"{icon}  \n\n{name}"
 
-            # The Button IS the Card
             if st.button(label_text, key=f"app_{a.get('id')}"):
                 target = PAGE_BY_ID.get(a.get("id"))
                 if target:
@@ -540,7 +503,7 @@ try:
                 else:
                     st.error(f"Module '{name}' not linked.")
 
-            st.write("")  # Layout spacer
+            st.write("")
             st.write("")
 
 except Exception as e:
