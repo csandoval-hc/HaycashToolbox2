@@ -267,7 +267,7 @@ PAGE_BY_ID = {
 st.markdown(f"""
     <style>
         /* Fonts */
-        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700;800&family=Inter:wght@400;600&display=swap');
 
         /* Global Reset */
         html, body, [class*="css"] {{
@@ -345,39 +345,45 @@ st.markdown(f"""
         }}
         
         .header-text h1 {{
-            font-size: 4.5rem; 
-            font-weight: 800; /* Bolder for executive feel */
-            letter-spacing: -1px; /* Tighter letter spacing */
+            font-size: 5rem; /* EXECUTIVE SIZE */
+            font-weight: 800; /* Extra Bold */
+            letter-spacing: -2px; 
             margin: 0;
-            background: linear-gradient(135deg, #ffffff 0%, #8b8b99 100%);
+            background: linear-gradient(135deg, #ffffff 10%, #a1a1aa 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }}
         
-        /* Subtitle removed as requested */
+        /* SUBTITLE REMOVED COMPLETELY */
 
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* 1. Base Container */
+        /* 1. Base Container - FORCED SYMMETRY */
         div.stButton > button {{
             all: unset; 
             width: 100% !important; 
-            height: 260px !important; /* FIXED HEIGHT FOR PERFECT SYMMETRY */
+            
+            /* CRITICAL: Hard-coded dimensions for perfect symmetry */
+            height: 240px !important; 
+            min-height: 240px !important;
+            max-height: 240px !important;
+            
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 30px; 
-            box-sizing: border-box;
             
+            /* Align content from the TOP so icons are always level */
+            justify-content: flex-start; 
+            padding-top: 40px !important;
+            padding-left: 30px !important;
+            padding-right: 30px !important;
+            
+            box-sizing: border-box;
             background: transparent;
             border: none;
             border-radius: 24px;
-            
             position: relative;
             overflow: hidden; 
-            
             opacity: 0; 
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }}
@@ -444,14 +450,15 @@ st.markdown(f"""
             position: relative;
             z-index: 2;
             color: #f5f5f7;
-            font-size: 1.4rem;
+            font-size: 1.5rem; /* Slightly larger text */
             font-weight: 600;
             letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
             width: 100%;
-            line-height: 1.4;
+            line-height: 1.3;
             pointer-events: none;
+            margin-top: 15px; /* Spacer between Icon and Text */
         }}
         
         /* Hover State for Body (Scale Up) */
