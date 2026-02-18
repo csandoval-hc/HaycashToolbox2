@@ -100,7 +100,8 @@ def _sidebar_nav():
     with st.sidebar:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
-            st.image(str(logo), use_container_width=True)
+            # FIX: Streamlit deprecation (use_container_width -> width)
+            st.image(str(logo), width="stretch")
 
         st.markdown("### HayCash ToolBox")
         st.caption("NAVEGACIÓN PRINCIPAL")
@@ -160,23 +161,34 @@ _signature_header(
 with st.container(border=True):
     control_space = st.container()
 
+# FIX: Save original sidebar so the monkeypatch does NOT persist into other pages/home
+_ORIGINAL_SIDEBAR = _stmod.sidebar
+
 # MONKEYPATCH: Any call to st.sidebar in the sub-app now goes into 'control_space'
 _stmod.sidebar = control_space
 
 # --- LAUNCH INTERNAL APP WITH CRASH PROTECTION ---
 try:
     APP_DIR = ROOT / "apps" / "cdf_isaac"
-    
+
+    # Safety: ensure directory exists (prevents white screen if path is wrong)
+    if not APP_DIR.exists():
+        raise FileNotFoundError(f"App directory not found: {APP_DIR}")
+
     # Force the system to enter the app directory so it finds its files
     os.chdir(APP_DIR)
-    
+
     # Run the app
     runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
 
 except Exception as e:
     st.error(f"Application Error: {e}")
+    st.exception(e)
 
 finally:
+    # FIX: Always restore sidebar monkeypatch so navigation/home doesn't break after leaving this page
+    _stmod.sidebar = _ORIGINAL_SIDEBAR
+
     # CRITICAL: Always return to the safe root folder.
     # This prevents the white screen when you try to leave the page.
     os.chdir(SAFE_ROOT)
