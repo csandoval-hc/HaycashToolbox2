@@ -325,7 +325,7 @@ st.markdown(f"""
         .apple-header {{
             display: flex;
             align-items: center;
-            margin-bottom: 90px; /* Increased from 70px for better placement */
+            margin-bottom: 90px;
             /* Entrance Logic */
             opacity: 0;
             animation: heroEntrance 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -333,7 +333,7 @@ st.markdown(f"""
         }}
         
         .logo-mark {{
-            width: 80px; /* Slightly larger logo to match title */
+            width: 80px; 
             height: 80px;
             border-radius: 20px;
             box-shadow: 0 0 40px rgba(255,255,255,0.1);
@@ -345,9 +345,9 @@ st.markdown(f"""
         }}
         
         .header-text h1 {{
-            font-size: 4.5rem; /* Increased from 3.5rem for Executive Look */
-            font-weight: 700;
-            letter-spacing: -0.03em;
+            font-size: 4.5rem; 
+            font-weight: 800; /* Bolder for executive feel */
+            letter-spacing: -1px; /* Tighter letter spacing */
             margin: 0;
             background: linear-gradient(135deg, #ffffff 0%, #8b8b99 100%);
             -webkit-background-clip: text;
@@ -355,39 +355,29 @@ st.markdown(f"""
             text-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }}
         
-        .header-text p {{
-            color: #86868b;
-            font-size: 1.1rem;
-            margin: 6px 0 0 0;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-        }}
+        /* Subtitle removed as requested */
 
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
         /* 1. Base Container */
         div.stButton > button {{
             all: unset; 
-            width: 100% !important; /* Force full width */
-            height: 200px !important; /* Fixed height for perfect symmetry */
+            width: 100% !important; 
+            height: 260px !important; /* FIXED HEIGHT FOR PERFECT SYMMETRY */
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             justify-content: center;
-            padding: 30px; /* Reduced padding to prevent content crowding */
+            padding: 30px; 
             box-sizing: border-box;
             
-            /* Transparent base allows ::before spinner to show through if needed, 
-               but we rely on positioning */
             background: transparent;
             border: none;
-            border-radius: 24px; /* Sharper, more professional radius */
+            border-radius: 24px;
             
-            /* Stacking Context */
             position: relative;
-            overflow: hidden; /* Clips the spinning lights at the corners */
+            overflow: hidden; 
             
-            /* Motion Entrance */
             opacity: 0; 
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }}
@@ -509,7 +499,6 @@ try:
             {logo_img}
             <div class="header-text">
                 <h1>HayCash ToolBox</h1>
-                <p>Secure Intelligence Protocol</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
