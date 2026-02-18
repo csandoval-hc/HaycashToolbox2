@@ -325,7 +325,7 @@ st.markdown(f"""
         .apple-header {{
             display: flex;
             align-items: center;
-            margin-bottom: 70px;
+            margin-bottom: 90px; /* Increased from 70px for better placement */
             /* Entrance Logic */
             opacity: 0;
             animation: heroEntrance 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -333,19 +333,19 @@ st.markdown(f"""
         }}
         
         .logo-mark {{
-            width: 72px;
-            height: 72px;
-            border-radius: 18px;
+            width: 80px; /* Slightly larger logo to match title */
+            height: 80px;
+            border-radius: 20px;
             box-shadow: 0 0 40px rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.1);
         }}
         
         .header-text {{
-            margin-left: 24px;
+            margin-left: 28px;
         }}
         
         .header-text h1 {{
-            font-size: 3.5rem;
+            font-size: 4.5rem; /* Increased from 3.5rem for Executive Look */
             font-weight: 700;
             letter-spacing: -0.03em;
             margin: 0;
@@ -368,20 +368,20 @@ st.markdown(f"""
         /* 1. Base Container */
         div.stButton > button {{
             all: unset; 
-            width: 100%;
-            height: 240px;
+            width: 100% !important; /* Force full width */
+            height: 200px !important; /* Fixed height for perfect symmetry */
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             justify-content: center;
-            padding: 40px;
+            padding: 30px; /* Reduced padding to prevent content crowding */
             box-sizing: border-box;
             
             /* Transparent base allows ::before spinner to show through if needed, 
                but we rely on positioning */
             background: transparent;
             border: none;
-            border-radius: 32px;
+            border-radius: 24px; /* Sharper, more professional radius */
             
             /* Stacking Context */
             position: relative;
@@ -426,7 +426,7 @@ st.markdown(f"""
             position: absolute;
             /* Inset by 2px to allow the Rotating Lights (Layer 0) to act as a border */
             inset: 2px; 
-            border-radius: 30px; /* Matches button radius minus border width */
+            border-radius: 22px; /* Matches button radius minus border width */
             background: rgba(20, 20, 30, 0.6); /* Deep Glass */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -509,7 +509,7 @@ try:
             {logo_img}
             <div class="header-text">
                 <h1>HayCash ToolBox</h1>
-                <p></p>
+                <p>Secure Intelligence Protocol</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
