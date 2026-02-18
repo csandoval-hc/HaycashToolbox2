@@ -365,6 +365,7 @@ st.markdown(f"""
 
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
+        /* 1. Base Container */
         div.stButton > button {{
             all: unset; 
             width: 100%;
@@ -376,25 +377,18 @@ st.markdown(f"""
             padding: 40px;
             box-sizing: border-box;
             
-            /* Glass Base */
-            background: rgba(20, 20, 25, 0.4);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+            /* Transparent base allows ::before spinner to show through if needed, 
+               but we rely on positioning */
+            background: transparent;
+            border: none;
             border-radius: 32px;
             
-            /* Text */
-            color: #f5f5f7;
-            font-size: 1.4rem;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-            
-            /* Motion */
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            /* Stacking Context */
             position: relative;
-            overflow: hidden;
-            opacity: 0; /* Hidden initially */
+            overflow: hidden; /* Clips the spinning lights at the corners */
+            
+            /* Motion Entrance */
+            opacity: 0; 
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }}
         
@@ -405,49 +399,82 @@ st.markdown(f"""
         div.stButton:nth-of-type(4) > button {{ animation-delay: 4.0s; }}
         div.stButton:nth-of-type(5) > button {{ animation-delay: 4.1s; }}
 
-        /* THE SHIMMER EFFECT (Moving Light Beam) */
-        div.stButton > button::after {{
+        /* 2. THE ROTATING LIGHTS (ON HOVER) - Bottom Layer (Layer 0) */
+        div.stButton > button::before {{
             content: "";
             position: absolute;
-            top: 0; left: -100%;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(
-                90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.1), 
-                transparent
-            );
-            transform: skewX(-20deg);
-            transition: 0.5s;
+            top: 50%; left: 50%;
+            width: 200%; height: 200%;
+            /* The Spinning Conic Gradient */
+            background: conic-gradient(from 0deg, transparent 0%, #007aff 20%, #ffffff 40%, transparent 60%);
+            transform: translate(-50%, -50%);
+            z-index: 0; /* Behind the glass body */
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease;
             pointer-events: none;
         }}
         
-        /* Hover State */
-        div.stButton > button:hover {{
-            transform: translateY(-10px) scale(1.02);
-            background: rgba(40, 40, 50, 0.6);
-            border-color: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 40px 80px -20px rgba(0,0,0,0.8), 0 0 20px rgba(255,255,255,0.05);
+        /* Hover Interaction: Ignite the lights */
+        div.stButton > button:hover::before {{
+            opacity: 1;
+            animation: rotateBorder 3s linear infinite;
         }}
 
-        div.stButton > button:hover::after {{
-            animation: shine 0.75s ease-in-out;
-        }}
-        
-        @keyframes shine {{
-            0% {{ left: -100%; }}
-            100% {{ left: 200%; }}
+        /* 3. THE GLASS BODY & AUTOMATIC SHEEN - Middle Layer (Layer 1) */
+        div.stButton > button::after {{
+            content: "";
+            position: absolute;
+            /* Inset by 2px to allow the Rotating Lights (Layer 0) to act as a border */
+            inset: 2px; 
+            border-radius: 30px; /* Matches button radius minus border width */
+            background: rgba(20, 20, 30, 0.6); /* Deep Glass */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+            z-index: 1;
+            
+            /* THE PERIODIC SHEEN (Background Image Gradient) */
+            background-image: linear-gradient(
+                120deg, 
+                transparent 30%, 
+                rgba(255, 255, 255, 0.1) 45%, 
+                rgba(255, 255, 255, 0.2) 50%, 
+                rgba(255, 255, 255, 0.1) 55%, 
+                transparent 70%
+            );
+            background-size: 250% 100%;
+            background-position: 200% 0; /* Start off-screen right */
+            
+            /* Continuous "Living" Animation */
+            animation: periodicSheen 6s ease-in-out infinite;
         }}
 
+        /* 4. TEXT CONTENT - Top Layer (Layer 2) */
         div.stButton > button p {{
+            position: relative;
+            z-index: 2;
+            color: #f5f5f7;
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
             width: 100%;
             line-height: 1.4;
+            pointer-events: none;
+        }}
+        
+        /* Hover State for Body (Scale Up) */
+        div.stButton > button:hover {{
+            transform: translateY(-8px) scale(1.02);
+            /* No background change here, we rely on ::after */
+        }}
+        
+        div.stButton > button:hover::after {{
+             background-color: rgba(30, 30, 45, 0.7); /* Slightly lighter glass on hover */
         }}
 
-        /* ENTRANCE ANIMATIONS */
+        /* ANIMATIONS */
         @keyframes heroEntrance {{
             from {{ opacity: 0; transform: translateY(20px); filter: blur(10px); }}
             to {{ opacity: 1; transform: translateY(0); filter: blur(0px); }}
@@ -456,6 +483,17 @@ st.markdown(f"""
         @keyframes cardFloatUp {{
             from {{ opacity: 0; transform: translateY(50px) scale(0.95); }}
             to {{ opacity: 1; transform: translateY(0) scale(1); }}
+        }}
+        
+        @keyframes rotateBorder {{
+            from {{ transform: translate(-50%, -50%) rotate(0deg); }}
+            to {{ transform: translate(-50%, -50%) rotate(360deg); }}
+        }}
+
+        @keyframes periodicSheen {{
+            0% {{ background-position: 200% 0; }} /* Off screen right */
+            20% {{ background-position: -100% 0; }} /* Sweep to left */
+            100% {{ background-position: -100% 0; }} /* Wait (Pause) */
         }}
 
     </style>
@@ -471,7 +509,7 @@ try:
             {logo_img}
             <div class="header-text">
                 <h1>HayCash ToolBox</h1>
-                <p>Secure Intelligence Protocol</p>
+                <p></p>
             </div>
         </div>
     """, unsafe_allow_html=True)
