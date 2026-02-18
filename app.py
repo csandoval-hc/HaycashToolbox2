@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 import streamlit as st
 import yaml
-from simple_auth import require_shared_password
 
 # --- 0. CRITICAL SYSTEM SETUP ---
 # This ensures the app always runs from the correct root folder
@@ -13,19 +12,22 @@ try:
     # 1. Identify where this file (app.py) is located
     CURRENT_FILE = Path(__file__).resolve()
     PROJECT_ROOT = CURRENT_FILE.parent
-    
+
     # 2. Force the working directory to match
     if os.getcwd() != str(PROJECT_ROOT):
         os.chdir(PROJECT_ROOT)
-        
+
     # 3. Add to Python path so imports like 'simple_auth' work
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-        
+
 except Exception as e:
     # Fallback if filesystem is locked (rare)
     print(f"Init Warning: {e}")
     PROJECT_ROOT = Path(".")
+
+# IMPORTANT FIX: import AFTER sys.path is corrected (prevents white screen/crash)
+from simple_auth import require_shared_password
 
 # --- 1. APP CONFIGURATION ---
 st.set_page_config(
@@ -43,14 +45,15 @@ ASSETS = PROJECT_ROOT / "assets"
 # --- 2. CORE UTILITIES ---
 def b64(path: Path) -> str:
     """Converts an image file to a base64 string for HTML embedding."""
-    if not path.exists(): return ""
+    if not path.exists(): 
+        return ""
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
 def load_registry():
     """Loads the list of available apps from apps.yaml."""
     try:
         cfg_path = PROJECT_ROOT / "apps.yaml"
-        if not cfg_path.exists(): 
+        if not cfg_path.exists():
             return []
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
         return cfg.get("apps", [])
@@ -63,15 +66,23 @@ def safe_navigate(page_path, app_name):
     """
     try:
         with st.spinner(f"Accessing {app_name}..."):
-            time.sleep(0.3) # Cinematic delay
-        
+            time.sleep(0.3)  # Cinematic delay
+
         # Double check we are anchored at root before jumping
         if os.getcwd() != str(PROJECT_ROOT):
             os.chdir(PROJECT_ROOT)
-            
+
+        # IMPORTANT FIX: prevent blank/failed transitions if the page file is missing
+        target_file = (PROJECT_ROOT / page_path).resolve()
+        if not target_file.exists():
+            st.error(f"Missing page file: {page_path}")
+            return
+
         st.switch_page(page_path)
+
     except Exception as e:
         st.error(f"Navigation Error: {e}")
+        st.exception(e)
 
 # --- 3. LOAD DATA & ASSETS ---
 apps = load_registry()
@@ -257,45 +268,51 @@ st.markdown(f"""
 # --- 6. RENDER HEADER ---
 logo_img = f'<img src="data:image/jpg;base64,{logo_b64}" class="logo-mark">' if logo_b64 else ""
 
-st.markdown(f"""
-    <div class="apple-header">
-        {logo_img}
-        <div class="header-text">
-            <h1>HayCash ToolBox</h1>
-            <p>Select an application to launch secure protocol.</p>
+# OPTIONAL HARDENING: prevent silent "white screen" on render-time errors
+try:
+    st.markdown(f"""
+        <div class="apple-header">
+            {logo_img}
+            <div class="header-text">
+                <h1>HayCash ToolBox</h1>
+                <p>Select an application to launch secure protocol.</p>
+            </div>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# --- 7. RENDER GLASS CARDS ---
-cols = st.columns(3)
+    # --- 7. RENDER GLASS CARDS ---
+    cols = st.columns(3)
 
-for i, a in enumerate(apps):
-    col = cols[i % 3]
-    
-    name = a.get("name", "App")
-    
-    # Icons: Using large emojis/chars for instant visual recognition inside the button
-    icon = "⚡"
-    if "CSF" in name: icon = "🧾"
-    elif "BBVA" in name: icon = "🏦"
-    elif "Leads" in name: icon = "📊"
-    elif "Factoraje" in name: icon = "💳"
-    elif "Edocat" in name: icon = "📄"
-    elif "Consejo" in name: icon = "📈"
-    elif "Contrato" in name: icon = "📝"
+    for i, a in enumerate(apps):
+        col = cols[i % 3]
 
-    with col:
-        # Card Layout: Icon on top, Name below
-        label_text = f"{icon}  \n\n{name}"
-        
-        # The Button IS the Card
-        if st.button(label_text, key=f"app_{a.get('id')}"):
-            target = PAGE_BY_ID.get(a.get("id"))
-            if target:
-                safe_navigate(target, name)
-            else:
-                st.error(f"Module '{name}' not linked.")
-        
-        st.write("") # Layout spacer
-        st.write("")
+        name = a.get("name", "App")
+
+        # Icons: Using large emojis/chars for instant visual recognition inside the button
+        icon = "⚡"
+        if "CSF" in name: icon = "🧾"
+        elif "BBVA" in name: icon = "🏦"
+        elif "Leads" in name: icon = "📊"
+        elif "Factoraje" in name: icon = "💳"
+        elif "Edocat" in name: icon = "📄"
+        elif "Consejo" in name: icon = "📈"
+        elif "Contrato" in name: icon = "📝"
+
+        with col:
+            # Card Layout: Icon on top, Name below
+            label_text = f"{icon}  \n\n{name}"
+
+            # The Button IS the Card
+            if st.button(label_text, key=f"app_{a.get('id')}"):
+                target = PAGE_BY_ID.get(a.get("id"))
+                if target:
+                    safe_navigate(target, name)
+                else:
+                    st.error(f"Module '{name}' not linked.")
+
+            st.write("")  # Layout spacer
+            st.write("")
+
+except Exception as e:
+    st.error("App crashed while rendering.")
+    st.exception(e)
