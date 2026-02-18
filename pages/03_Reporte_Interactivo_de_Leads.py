@@ -5,6 +5,7 @@ import base64
 from pathlib import Path
 import streamlit as st
 import streamlit as _stmod  # Needed for the monkeypatch
+import streamlit.components.v1 as components  # FIX: used to remove "Revisado MAU" safely
 
 from simple_auth import require_shared_password
 
@@ -166,6 +167,35 @@ try:
 
     os.chdir(APP_DIR)
     runpy.run_path(str(APP_DIR / "streamlit_app.py"), run_name="__main__")
+
+    # FIX: Remove "Revisado MAU" wherever it appears in the rendered DOM
+    components.html(
+        """
+        <script>
+        (function() {
+          function hideRevisadoMAU() {
+            try {
+              const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+              let node;
+              while ((node = walker.nextNode())) {
+                if (node.nodeValue && node.nodeValue.includes("Revisado MAU")) {
+                  const el = node.parentElement;
+                  if (el) {
+                    el.style.display = "none";
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+          setTimeout(hideRevisadoMAU, 50);
+          setTimeout(hideRevisadoMAU, 300);
+          setTimeout(hideRevisadoMAU, 1000);
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 except Exception as e:
     st.error(f"Application Error: {e}")
