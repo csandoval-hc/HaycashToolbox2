@@ -345,14 +345,13 @@ st.markdown(f"""
         
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* PERFECTLY SYMMETRICAL SQUARE CARDS */
+        /* PERFECTLY SYMMETRICAL CARDS */
         div.stButton > button {{
             all: unset; 
             width: 100% !important; 
-            aspect-ratio: 1 / 1 !important;
-            height: auto !important;
-            min-height: unset !important;
-            max-height: unset !important;
+            height: 240px !important;
+            min-height: 240px !important;
+            max-height: 240px !important;
             display: flex;
             flex-direction: column;
             justify-content: flex-start; 
