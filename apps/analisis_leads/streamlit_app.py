@@ -1,182 +1,324 @@
-# HayCash signature wrapper: consistent look + nav-only sidebar
 import os
-import runpy
-import base64
+import sys
 from pathlib import Path
-import streamlit as st
-import streamlit as _stmod  # Needed for the monkeypatch
 
-from simple_auth import require_shared_password
-
-ROOT = Path(__file__).resolve().parents[1]
-SAFE_ROOT = ROOT
-ASSETS = ROOT / "assets"
-
-
-def _b64(path: Path) -> str:
-    return base64.b64encode(path.read_bytes()).decode("utf-8")
-
-
-def _inject_signature_css(logo_b64: str | None):
-    logo_css = ""
-    if logo_b64:
-        logo_css = f"""
-        .hc-topbar-logo {{
-          background-image: url("data:image/jpg;base64,{logo_b64}");
-          background-repeat: no-repeat;
-          background-position: right center;
-          background-size: contain;
-          width: 280px;
-          height: 65px;
-          flex-shrink: 0;
-        }}
-        """
-
-    st.markdown(
-        f"""
-        <style>
-          /* Fix page width to prevent header cutoff */
-          .block-container {{
-            padding-top: 1.5rem !important;
-            padding-bottom: 2rem !important;
-            max-width: 98% !important;
-          }}
-
-          /* Sidebar UI Fixes - Keeping only your Nav here */
-          [data-testid="stSidebarNav"] {{ display: none !important; }}
-
-          section[data-testid="stSidebar"] {{
-            background-color: #f8f9fa;
-            border-right: 1px solid #e0e0e0;
-          }}
-
-          /* Unified Header Bar */
-          .hc-topbar {{
-            width: 100%;
-            background: #314270;
-            border-radius: 12px 12px 0 0;
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-          }}
-          .hc-topbar-title {{
-            margin: 0;
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #ffffff;
-          }}
-          .hc-topbar-subtitle {{
-            margin: 0;
-            font-size: 1rem;
-            color: rgba(255,255,255,0.85);
-          }}
-          {logo_css}
-
-          /* Yellow Accent Line */
-          .hc-accent {{
-            height: 5px;
-            width: 100%;
-            background: #FFBA00;
-            border-radius: 0 0 12px 12px;
-            margin-bottom: 2rem;
-          }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def _sidebar_nav():
-    with st.sidebar:
-        logo = ASSETS / "haycash_logo.jpg"
-        if logo.exists():
-            # FIX: use_container_width is the correct way (no "stretch" value)
-            st.image(str(logo), use_container_width=True)
-
-        st.markdown("### HayCash ToolBox")
-        st.caption("NAVEGACIÓN PRINCIPAL")
-        st.divider()
-
-        st.page_link("app.py", label="🏠 Inicio")
-        st.page_link("pages/01_Lector_CSF.py", label="🧾 Lector CSF")
-        st.page_link("pages/02_CSV_a_TXT_BBVA.py", label="🏦 CSV a TXT BBVA")
-        st.page_link("pages/03_Reporte_Interactivo_de_Leads.py", label="📊 Reporte Leads")
-        st.page_link("pages/04_Factoraje.py", label="💳 Factoraje")
-        st.page_link("pages/05_Lector_edocat.py", label="📄 Lector Edocat")
-        st.page_link("pages/06_reporte_consejo.py", label="📈 Reporte Consejo")
-        st.page_link("pages/07_lector_contrato.py", label="📝 Lector Contrato")
-
-        st.divider()
-        if st.session_state.get("auth_ok"):
-            user = st.session_state.get("auth_user") or "-"
-            st.caption(f"Usuario: **{user}**")
-
-
-def _signature_header(title: str, subtitle: str):
-    st.markdown(
-        f"""
-        <div class="hc-topbar">
-          <div class="hc-topbar-left">
-            <div class="hc-topbar-title">{title}</div>
-            <div class="hc-topbar-subtitle">{subtitle}</div>
-          </div>
-          <div class="hc-topbar-logo"></div>
-        </div>
-        <div class="hc-accent"></div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# --- PAGE SETUP ---
-st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
-
-# Authentication (wrapper is source of truth)
-require_shared_password()
-
-# Assets & Style
-logo_file = ASSETS / "haycash_logo.jpg"
-logo_b64 = _b64(logo_file) if logo_file.exists() else None
-_inject_signature_css(logo_b64)
-
-# 1. Sidebar Nav
-_sidebar_nav()
-
-# 2. Header
-_signature_header(
-    title="Reporte Interactivo de Leads",
-    subtitle="Análisis detallado y seguimiento de leads comerciales.",
-)
-
-# 3. Create card for sub-app controls
-with st.container(border=True):
-    control_space = st.container()
-
-# Save original sidebar so the monkeypatch does NOT persist into other pages/home
-_ORIGINAL_SIDEBAR = _stmod.sidebar
-
-# Redirect sub-app's sidebar calls (filters, date ranges, etc.) to the main page card
-_stmod.sidebar = control_space
+_APP_DIR = Path(__file__).resolve().parent
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
 
 try:
-    APP_DIR = ROOT / "apps" / "analisis_leads"
+    os.chdir(str(_APP_DIR))
+except Exception:
+    pass
 
-    if not APP_DIR.exists():
-        raise FileNotFoundError(f"App directory not found: {APP_DIR}")
+import shutil
+import subprocess
+from datetime import date, timedelta
 
-    # Tell the embedded app to NOT call set_page_config or run its own login
-    os.environ["HC_SKIP_PAGE_CONFIG"] = "1"
-    os.environ["HC_SKIP_INTERNAL_AUTH"] = "1"
+import pandas as pd
+import streamlit as st
 
-    os.chdir(APP_DIR)
-    runpy.run_path(str(APP_DIR / "streamlit_app.py"), run_name="__main__")
+from leads_logic import (
+    ReviewStore,
+    SnapshotSource,
+    load_blocked_rfcs,
+    build_snapshot_view,
+    enrich,
+    apply_filters,
+    kpis,
+    DEFAULT_REVIEWED_CSV,
+    DEFAULT_SNAPSHOT_CSV,
+    ALLOWED_STATUSES,
+)
 
-except Exception as e:
-    st.error(f"Application Error: {e}")
-    st.exception(e)
+APP_TITLE = "Análisis Leads"
+APP_ICON = "📊"
 
-finally:
-    # Always restore sidebar monkeypatch so navigation/home doesn't break after leaving this page
-    _stmod.sidebar = _ORIGINAL_SIDEBAR
-    os.chdir(SAFE_ROOT)
+EMBEDDED = os.getenv("HC_EMBEDDED", "0") == "1"
+SKIP_PAGE_CONFIG = os.getenv("HC_SKIP_PAGE_CONFIG", "0") == "1"
+SKIP_INTERNAL_AUTH = os.getenv("HC_SKIP_INTERNAL_AUTH", "0") == "1"
+
+
+def _rscript_path() -> str | None:
+    return shutil.which("Rscript")
+
+
+def _verify_with_r(user: str, password: str) -> bool:
+    r = _rscript_path()
+    if not r:
+        return False
+
+    script = Path(__file__).with_name("verify_credentials.R")
+    proc = subprocess.run(
+        [r, str(script), user, password],
+        cwd=str(Path(__file__).parent),
+        capture_output=True,
+        text=True,
+        timeout=12,
+    )
+    return proc.returncode == 0
+
+
+def require_login():
+    if SKIP_INTERNAL_AUTH:
+        # wrapper auth is source of truth; just ensure fields exist
+        if "auth_ok" not in st.session_state:
+            st.session_state.auth_ok = True
+        if "auth_user" not in st.session_state:
+            st.session_state.auth_user = st.session_state.get("auth_user") or "Carlos"
+        return
+
+    require_r = os.getenv("REQUIRE_R_AUTH", "0") == "1"
+    r_ok = _rscript_path() is not None
+
+    if require_r and not r_ok:
+        st.error("Rscript no está disponible en PATH. Instala R o agrega Rscript al PATH.")
+        st.stop()
+
+    if "auth_ok" not in st.session_state:
+        st.session_state.auth_ok = False
+        st.session_state.auth_user = None
+
+    if st.session_state.auth_ok:
+        return
+
+    with st.container(border=True):
+        st.subheader("Login")
+        user = st.text_input("Usuario", key="login_user")
+        pwd = st.text_input("Password", type="password", key="login_pwd")
+
+        cols = st.columns([1, 1, 3])
+        if cols[0].button("Entrar", use_container_width=True):
+            if not user or not pwd:
+                st.warning("Ingresa usuario y password.")
+            else:
+                ok = _verify_with_r(user, pwd) if r_ok else True
+                if ok:
+                    st.session_state.auth_ok = True
+                    st.session_state.auth_user = user
+                    st.rerun()
+                else:
+                    st.error("Credenciales inválidas.")
+
+        if cols[1].button("Salir", use_container_width=True):
+            st.stop()
+
+    st.stop()
+
+
+def logout_button():
+    if st.sidebar.button("Cerrar sesión", use_container_width=True):
+        st.session_state.auth_ok = False
+        st.session_state.auth_user = None
+        st.rerun()
+
+
+if not SKIP_PAGE_CONFIG:
+    st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
+
+require_login()
+
+# IMPORTANT: In embedded mode, do NOT add extra titles/captions/logos/logout
+if not EMBEDDED:
+    st.title(APP_TITLE)
+    st.caption(f"Usuario: {st.session_state.get('auth_user') or '-'}")
+    logout_button()
+
+    logo_path = Path("www") / "logo.png"
+    if logo_path.exists():
+        st.sidebar.image(str(logo_path), use_container_width=True)
+
+snapshot_path = Path(os.getenv("SNAPSHOT_CSV", str(DEFAULT_SNAPSHOT_CSV)))
+reviewed_path = Path(os.getenv("REVIEWED_CSV", str(DEFAULT_REVIEWED_CSV)))
+
+snapshot_src = SnapshotSource(snapshot_path)
+review_store = ReviewStore(reviewed_path)
+blocked_rfcs = load_blocked_rfcs(Path("www"))
+
+raw_snapshot = snapshot_src.read_or_empty()
+snapshot = build_snapshot_view(raw_snapshot)
+
+if not snapshot.empty and "rfc" in snapshot.columns and blocked_rfcs:
+    snapshot = snapshot[
+        ~snapshot["rfc"]
+        .astype(str)
+        .map(lambda x: "".join(ch for ch in str(x).upper() if ch.isalnum()))
+        .isin(blocked_rfcs)
+    ].copy()
+
+reviewed_tbl = review_store.read_or_empty()
+enriched_df = enrich(snapshot, reviewed_tbl)
+
+# Filters (these go into the wrapper card because sidebar is monkeypatched)
+st.sidebar.header("Filtros")
+
+today = date.today()
+default_start = today - timedelta(days=90)
+default_end = today
+
+if not enriched_df.empty and "created_mx" in enriched_df.columns:
+    tmp = pd.to_datetime(enriched_df["created_mx"], errors="coerce").dropna()
+    if not tmp.empty:
+        max_d = tmp.dt.date.max()
+        min_d = tmp.dt.date.min()
+        default_end = max_d
+        default_start = max_d - timedelta(days=90)
+        if default_start < min_d:
+            default_start = min_d
+
+created_range = st.sidebar.date_input(
+    "Rango creación (solo Pendientes)",
+    value=(default_start, default_end),
+)
+
+created_range_tuple = None
+if isinstance(created_range, tuple) and len(created_range) == 2:
+    start_d, end_d = created_range
+    if start_d and end_d:
+        if start_d > end_d:
+            start_d, end_d = end_d, start_d
+        created_range_tuple = (start_d, end_d)
+
+status_sel = st.sidebar.multiselect(
+    "Estatus (optools)",
+    options=ALLOWED_STATUSES,
+    default=ALLOWED_STATUSES,
+)
+
+kpi = kpis(enriched_df, created_range_tuple, status_sel)
+k1, k2, k3 = st.columns(3)
+k1.metric("Pendientes", kpi["pending"])
+k2.metric("Revisados", kpi["reviewed"])
+k3.metric("% Revisados", kpi["conv"])
+
+tab_pending, tab_reviewed, tab_downloads, tab_admin = st.tabs(
+    ["Pendientes", "Revisados", "Descargas", "Admin"]
+)
+
+
+def selectable_table(df: pd.DataFrame, key: str) -> tuple[pd.DataFrame, list[str]]:
+    if df.empty:
+        st.info("Sin resultados.")
+        return df, []
+
+    work = df.copy()
+    sel_col = "Seleccionar"
+    if sel_col not in work.columns:
+        work.insert(0, sel_col, False)
+
+    edited = st.data_editor(
+        work,
+        key=key,
+        hide_index=True,
+        use_container_width=True,
+        column_config={sel_col: st.column_config.CheckboxColumn(required=False)},
+        disabled=[c for c in work.columns if c != sel_col],
+    )
+    selected = edited[edited[sel_col] == True]
+    selected_ids = (
+        selected["Lead_id"].astype(str).tolist() if "Lead_id" in selected.columns else []
+    )
+    return edited.drop(columns=[sel_col]), selected_ids
+
+
+with tab_pending:
+    pending = enriched_df[enriched_df.get("revisado", 0) == 0].copy()
+    pending = apply_filters(
+        pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel
+    )
+
+    st.subheader("Pendientes")
+    _view_df, selected_ids = selectable_table(pending, key="pending_tbl")
+
+    btn_cols = st.columns(3)
+
+    # MAU removed
+    if btn_cols[0].button("Marcar revisado (BRANDON)", use_container_width=True):
+        if selected_ids:
+            review_store.mark(selected_ids, "BRANDON")
+            st.success(f"Marcados {len(selected_ids)}")
+            st.rerun()
+        else:
+            st.warning("Selecciona filas.")
+
+    if btn_cols[1].button("Marcar revisado (TANIA)", use_container_width=True):
+        if selected_ids:
+            review_store.mark(selected_ids, "TANIA")
+            st.success(f"Marcados {len(selected_ids)}")
+            st.rerun()
+        else:
+            st.warning("Selecciona filas.")
+
+    if btn_cols[2].button("Recargar snapshot", use_container_width=True):
+        st.rerun()
+
+with tab_reviewed:
+    reviewed = enriched_df[enriched_df.get("revisado", 0) == 1].copy()
+    reviewed = apply_filters(reviewed, reviewed=True, created_range=None, statuses=status_sel)
+
+    st.subheader("Revisados")
+    selectable_table(reviewed, key="reviewed_tbl")
+
+with tab_downloads:
+    st.subheader("Descargas")
+
+    pending = enriched_df[enriched_df.get("revisado", 0) == 0].copy()
+    pending = apply_filters(
+        pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel
+    )
+
+    reviewed = enriched_df[enriched_df.get("revisado", 0) == 1].copy()
+    reviewed = apply_filters(reviewed, reviewed=True, created_range=None, statuses=status_sel)
+
+    st.write("Pendientes (filtrado actual):")
+    st.download_button(
+        "Descargar CSV (pendientes)",
+        data=pending.to_csv(index=False).encode("utf-8-sig"),
+        file_name="pendientes.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    st.write("Revisados (filtrado actual):")
+    st.download_button(
+        "Descargar CSV (revisados)",
+        data=reviewed.to_csv(index=False).encode("utf-8-sig"),
+        file_name="revisados.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    st.write("Reviewed store (raw):")
+    st.download_button(
+        "Descargar CSV (reviewed_leads_app.csv)",
+        data=reviewed_tbl.to_csv(index=False).encode("utf-8-sig"),
+        file_name=reviewed_path.name,
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+with tab_admin:
+    st.subheader("Admin")
+
+    st.write("Rutas actuales:")
+    st.code(f"snapshot: {snapshot_path}\nreviewed: {reviewed_path}")
+
+    admin_user = str(st.session_state.get("auth_user") or "").lower()
+    is_admin = admin_user in {"doc", "enrique"} or (
+        os.getenv("ADMIN_USERS", "") != ""
+        and admin_user in {u.strip().lower() for u in os.getenv("ADMIN_USERS", "").split(",")}
+    )
+
+    if not is_admin:
+        st.info("Modo admin restringido.")
+    else:
+        if st.button("Reset reviewed (borrar marcas)", type="primary"):
+            review_store.reset()
+            st.success("Reviewed reset.")
+            st.rerun()
+
+    st.write("Preview snapshot (primeras 50 filas):")
+    st.dataframe(snapshot.head(50), use_container_width=True)
+
+    st.write("Preview reviewed store:")
+    st.dataframe(reviewed_tbl.head(50), use_container_width=True)
