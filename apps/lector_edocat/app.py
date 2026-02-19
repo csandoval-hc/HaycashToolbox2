@@ -46,13 +46,9 @@ if os.getenv("TESSDATA_PREFIX"):
 # Styling (match original look)
 # -----------------------------
 COLORES = {
-    "fondo": "#FEFCE8",
-    "texto": "#1F2937",
-    "borde": "#FBBF24",
-    "tarjeta": "#FFFFFF",
-    "sombra": "rgba(0,0,0,0.05)",
-    "boton": "#FACC15",
-    "boton_hover": "#FBBF24",
+    "fondo": "#000000",
+    "texto": "#FFFFFF",
+    "tarjeta": "transparent",
 }
 
 CSS = f"""
@@ -67,11 +63,9 @@ CSS = f"""
 /* Header */
 .hc-header {{
   background-color: {COLORES["tarjeta"]};
-  border-bottom: 5px solid {COLORES["borde"]};
   text-align: center;
   padding: 30px 0 20px 0;
   margin-bottom: 30px;
-  box-shadow: 0 2px 8px {COLORES["sombra"]};
   border-radius: 0px;
 }}
 .hc-header h1 {{
@@ -86,32 +80,8 @@ CSS = f"""
   border-radius: 12px;
   padding: 25px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 12px {COLORES["sombra"]};
 }}
 
-/* Status pill */
-.hc-status {{
-  background-color: #FEF3C7;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-}}
-
-/* Make Streamlit button match */
-div.stButton > button {{
-  background-color: {COLORES["boton"]};
-  color: {COLORES["texto"]};
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-}}
-div.stButton > button:hover {{
-  background-color: {COLORES["boton_hover"]};
-  color: {COLORES["texto"]};
-  border: none;
-}}
 </style>
 """
 
@@ -221,7 +191,7 @@ with left:
     lang = st.text_input("Idioma OCR (Tesseract)", value=DEFAULT_LANG, help="Ej: spa, eng. Requiere el traineddata correspondiente.")
     dpi = st.number_input("DPI para renderizar el PDF", min_value=150, max_value=600, value=300, step=50)
 
-    run = st.button("Procesar con OCR")
+    run = st.button("Procesar con OCR", type="primary")
 
     status_placeholder = st.empty()
     st.markdown("</div>", unsafe_allow_html=True)
@@ -238,18 +208,18 @@ if "ocr_text" not in st.session_state:
     st.session_state.ocr_text = ""
 
 if st.session_state.processing:
-    status_placeholder.markdown('<div class="hc-status">⏳ Procesando estado de cuenta...</div>', unsafe_allow_html=True)
+    status_placeholder.info('⏳ Procesando estado de cuenta...')
 elif uploaded is None:
-    status_placeholder.markdown('<div class="hc-status">Esperando archivo PDF...</div>', unsafe_allow_html=True)
+    status_placeholder.info('Esperando archivo PDF...')
 else:
-    status_placeholder.markdown('<div class="hc-status">Archivo listo. Presiona "Procesar con OCR".</div>', unsafe_allow_html=True)
+    status_placeholder.info('Archivo listo. Presiona "Procesar con OCR".')
 
 if run:
     if uploaded is None:
         st.warning("Primero sube un archivo PDF.")
     else:
         st.session_state.processing = True
-        status_placeholder.markdown('<div class="hc-status">⏳ Procesando estado de cuenta...</div>', unsafe_allow_html=True)
+        status_placeholder.info('⏳ Procesando estado de cuenta...')
 
         pdf_bytes = uploaded.read()
 
