@@ -17,7 +17,7 @@ import main
 
 st.set_page_config(page_title="Reporte Consejo", layout="wide")
 
-st.title("Reporte Consejo (Streamlit)")
+st.title("Reporte Consejo")
 st.caption("Genera el Excel exactamente con la lógica existente en main.py.")
 
 with st.sidebar:
@@ -51,7 +51,7 @@ if generar:
         st.error(f"Error al generar el archivo: {e}")
 
 st.divider()
-st.subheader("Opcional: Vista previa de tablas (sin cambiar la lógica)")
+st.subheader("Opcional: Vista previa de tablas")
 show_preview = st.checkbox("Mostrar vista previa", value=False)
 
 if show_preview:
