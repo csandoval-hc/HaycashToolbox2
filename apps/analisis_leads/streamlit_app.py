@@ -230,30 +230,33 @@ with tab_pending:
         pending, reviewed=False, created_range=created_range_tuple, statuses=status_sel
     )
 
+    btn_container = st.container()
+
     st.subheader("Pendientes")
     _view_df, selected_ids = selectable_table(pending, key="pending_tbl")
 
-    btn_cols = st.columns(3)
+    with btn_container:
+        btn_cols = st.columns(3)
 
-    # MAU removed
-    if btn_cols[0].button("Marcar revisado (BRANDON)", use_container_width=True):
-        if selected_ids:
-            review_store.mark(selected_ids, "BRANDON")
-            st.success(f"Marcados {len(selected_ids)}")
+        # MAU removed
+        if btn_cols[0].button("Revisado (BRANDON)", use_container_width=True, type="primary"):
+            if selected_ids:
+                review_store.mark(selected_ids, "BRANDON")
+                st.success(f"Marcados {len(selected_ids)}")
+                st.rerun()
+            else:
+                st.warning("Selecciona filas.")
+
+        if btn_cols[1].button("Revisado (TANIA)", use_container_width=True, type="primary"):
+            if selected_ids:
+                review_store.mark(selected_ids, "TANIA")
+                st.success(f"Marcados {len(selected_ids)}")
+                st.rerun()
+            else:
+                st.warning("Selecciona filas.")
+
+        if btn_cols[2].button("Recargar snapshot", use_container_width=True, type="primary"):
             st.rerun()
-        else:
-            st.warning("Selecciona filas.")
-
-    if btn_cols[1].button("Marcar revisado (TANIA)", use_container_width=True):
-        if selected_ids:
-            review_store.mark(selected_ids, "TANIA")
-            st.success(f"Marcados {len(selected_ids)}")
-            st.rerun()
-        else:
-            st.warning("Selecciona filas.")
-
-    if btn_cols[2].button("Recargar snapshot", use_container_width=True):
-        st.rerun()
 
 with tab_reviewed:
     reviewed = enriched_df[enriched_df.get("revisado", 0) == 1].copy()
