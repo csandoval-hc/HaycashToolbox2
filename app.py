@@ -312,13 +312,87 @@ st.markdown(f"""
             z-index: 10;
         }}
 
-        .apple-header {{
+        /* === NEW: EXECUTIVE TOP BAR (keeps vibe, adds structure) === */
+        .hc-homebar {{
+            width: 100%;
+            background: rgba(35, 38, 55, 0.55);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 22px;
+            padding: 20px 26px;
             display: flex;
             align-items: center;
-            margin-bottom: 90px;
+            justify-content: space-between;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+            margin-bottom: 70px;
             opacity: 0;
             animation: heroEntrance 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
             animation-delay: 3.6s;
+        }}
+
+        .hc-homebar-left {{
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            min-width: 0;
+        }}
+
+        .hc-homebar-mark {{
+            width: 62px;
+            height: 62px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 0 40px rgba(255,255,255,0.08);
+            flex: 0 0 auto;
+        }}
+
+        .hc-homebar-title {{
+            font-size: 3.1rem;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            margin: 0;
+            background: linear-gradient(135deg, #ffffff 10%, #b9bcc6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            line-height: 1.05;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .hc-homebar-subtitle {{
+            margin-top: 6px;
+            font-size: 1.0rem;
+            color: rgba(255,255,255,0.78);
+            letter-spacing: 0.2px;
+        }}
+
+        .hc-homebar-logo {{
+            width: 220px;
+            height: 62px;
+            background-repeat: no-repeat;
+            background-position: right center;
+            background-size: contain;
+            opacity: 0.92;
+            flex: 0 0 auto;
+        }}
+
+        .hc-homebar-accent {{
+            height: 4px;
+            width: 100%;
+            background: linear-gradient(90deg, rgba(0,122,255,0.0) 0%, rgba(0,122,255,0.55) 25%, rgba(255,255,255,0.25) 50%, rgba(0,122,255,0.55) 75%, rgba(0,122,255,0.0) 100%);
+            border-radius: 999px;
+            margin-top: -52px;
+            margin-bottom: 90px;
+            opacity: 0.7;
+            filter: blur(0px);
+        }}
+
+        /* Old header not used for layout anymore (kept intact elsewhere) */
+        .apple-header {{
+            display: none;
         }}
         
         .logo-mark {{
@@ -475,15 +549,21 @@ st.markdown(f"""
 
 # --- 6. RENDER HEADER ---
 logo_img = f'<img src="data:image/jpg;base64,{logo_b64}" class="logo-mark">' if logo_b64 else ""
+topbar_logo_style = f'style="background-image:url(data:image/jpg;base64,{logo_b64});"' if logo_b64 else ""
 
 try:
     st.markdown(f"""
-        <div class="apple-header">
-            {logo_img}
-            <div class="header-text">
-                <h1>HayCash ToolBox</h1>
+        <div class="hc-homebar">
+            <div class="hc-homebar-left">
+                {logo_img.replace('class="logo-mark"', 'class="hc-homebar-mark"')}
+                <div>
+                    <div class="hc-homebar-title">HayCash ToolBox</div>
+                    <div class="hc-homebar-subtitle">Tools & reports — unified workspace</div>
+                </div>
             </div>
+            <div class="hc-homebar-logo" {topbar_logo_style}></div>
         </div>
+        <div class="hc-homebar-accent"></div>
     """, unsafe_allow_html=True)
 
     # --- 7. RENDER GLASS CARDS ---
