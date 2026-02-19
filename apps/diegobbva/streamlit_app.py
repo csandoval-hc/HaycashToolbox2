@@ -75,7 +75,7 @@ bloque_override = st.text_input("Bloque (opcional)", value=BLOQUE_DEFAULT)
 
 st.divider()
 
-if st.button("Generar TXT"):
+if st.button("Generar TXT", type="primary"):
     if uploaded is None:
         st.error("Selecciona el Excel/CSV de entrada.")
         st.stop()
