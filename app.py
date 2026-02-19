@@ -366,11 +366,13 @@ st.markdown(f"""
             height: 3px;
             width: 100%;
             background: linear-gradient(90deg, rgba(0,122,255,0) 0%, rgba(0,122,255,0.8) 25%, rgba(0,255,255,1) 45%, #ffffff 50%, rgba(0,255,255,1) 55%, rgba(0,122,255,0.8) 75%, rgba(0,122,255,0) 100%);
+            background-size: 200% 100%; /* Allows the gradient to be wider than the bar */
             border-radius: 999px;
             margin-top: -52px;
             margin-bottom: 90px;
             box-shadow: 0 0 20px 2px rgba(0,255,255,0.5), 0 0 40px 5px rgba(0,122,255,0.3);
             opacity: 0.9;
+            animation: laserSweep 4s ease-in-out infinite; /* Added motion */
         }}
 
         /* Old header not used for layout anymore (kept intact elsewhere) */
@@ -525,6 +527,13 @@ st.markdown(f"""
             0% {{ background-position: 200% 0; }}
             20% {{ background-position: -100% 0; }}
             100% {{ background-position: -100% 0; }}
+        }}
+
+        /* The Laser Beam Animation */
+        @keyframes laserSweep {{
+            0% {{ background-position: 0% center; }}
+            50% {{ background-position: 100% center; }}
+            100% {{ background-position: 0% center; }}
         }}
 
     </style>
