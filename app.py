@@ -430,6 +430,16 @@ st.markdown(f"""
             pointer-events: none;
             margin-top: 15px;
         }}
+
+        /* === FIX: UNIFORM TEXT WRAPPING (PROFESSIONAL CONSISTENT CARDS) === */
+        /* This ensures long names (e.g., "Reporte Interactivo de Leads") do not change the perceived size/layout */
+        div.stButton > button p {{
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
         
         div.stButton > button:hover {{
             transform: translateY(-8px) scale(1.02);
