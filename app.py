@@ -1,4 +1,3 @@
-# app.py  (UNCHANGED — your existing file stays exactly the same)
 import base64
 import time
 import os
@@ -338,15 +337,6 @@ st.markdown(f"""
             min-width: 0;
         }}
 
-        .hc-homebar-mark {{
-            width: 62px;
-            height: 62px;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.12);
-            box-shadow: 0 0 40px rgba(255,255,255,0.08);
-            flex: 0 0 auto;
-        }}
-
         .hc-homebar-title {{
             font-size: 3.1rem;
             font-weight: 800;
@@ -362,13 +352,6 @@ st.markdown(f"""
             text-overflow: ellipsis;
         }}
 
-        .hc-homebar-subtitle {{
-            margin-top: 6px;
-            font-size: 1.0rem;
-            color: rgba(255,255,255,0.78);
-            letter-spacing: 0.2px;
-        }}
-
         .hc-homebar-logo {{
             width: 220px;
             height: 62px;
@@ -380,14 +363,14 @@ st.markdown(f"""
         }}
 
         .hc-homebar-accent {{
-            height: 4px;
+            height: 3px;
             width: 100%;
-            background: linear-gradient(90deg, rgba(0,122,255,0.0) 0%, rgba(0,122,255,0.55) 25%, rgba(255,255,255,0.25) 50%, rgba(0,122,255,0.55) 75%, rgba(0,122,255,0.0) 100%);
+            background: linear-gradient(90deg, rgba(0,122,255,0) 0%, rgba(0,122,255,0.8) 25%, rgba(0,255,255,1) 45%, #ffffff 50%, rgba(0,255,255,1) 55%, rgba(0,122,255,0.8) 75%, rgba(0,122,255,0) 100%);
             border-radius: 999px;
             margin-top: -52px;
             margin-bottom: 90px;
-            opacity: 0.7;
-            filter: blur(0px);
+            box-shadow: 0 0 20px 2px rgba(0,255,255,0.5), 0 0 40px 5px rgba(0,122,255,0.3);
+            opacity: 0.9;
         }}
 
         /* Old header not used for layout anymore (kept intact elsewhere) */
@@ -555,10 +538,8 @@ try:
     st.markdown(f"""
         <div class="hc-homebar">
             <div class="hc-homebar-left">
-                {logo_img.replace('class="logo-mark"', 'class="hc-homebar-mark"')}
                 <div>
                     <div class="hc-homebar-title">HayCash ToolBox</div>
-                    <div class="hc-homebar-subtitle">Tools & reports — unified workspace</div>
                 </div>
             </div>
             <div class="hc-homebar-logo" {topbar_logo_style}></div>
