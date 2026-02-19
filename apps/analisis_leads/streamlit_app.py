@@ -128,7 +128,10 @@ if not EMBEDDED:
     if logo_path.exists():
         st.sidebar.image(str(logo_path), use_container_width=True)
 
-snapshot_path = Path(os.getenv("SNAPSHOT_CSV", str(DEFAULT_SNAPSHOT_CSV)))
+# === ONLY CHANGE: set correct default CSV paths when env vars are not provided ===
+snapshot_path = Path(
+    os.getenv("SNAPSHOT_CSV", str(Path("leads_dashboard_snapshot.csv")))
+)
 reviewed_path = Path(os.getenv("REVIEWED_CSV", str(DEFAULT_REVIEWED_CSV)))
 
 snapshot_src = SnapshotSource(snapshot_path)
