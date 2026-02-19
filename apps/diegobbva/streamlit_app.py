@@ -51,7 +51,7 @@ BUSINESS_EMISOR_STR = _logic_attr("BUSINESS_EMISOR_STR", "RAZON_SOCIAL", "BUSINE
 
 st.set_page_config(page_title="BBVA Domiciliación (300 bytes)", layout="centered")
 
-st.title("BBVA Domiciliación – FIXED (300 bytes)")
+st.title("BBVA Domiciliación")
 st.caption("Genera un TXT de 300 bytes por registro (latin-1, CRLF), usando la misma lógica del script original.")
 
 uploaded = st.file_uploader("Excel/CSV entrada", type=["xlsx", "xls", "xlsm", "csv"])
