@@ -39,9 +39,16 @@ def _inject_signature_css(logo_b64: str | None):
             background-color: #ffffff !important;
           }}
 
+          /* === FIX: prevent header cutoff + add professional top spacing === */
+          header[data-testid="stHeader"] {{
+            height: 0 !important;
+            min-height: 0 !important;
+            display: none !important;
+          }}
+
           /* Fix page width to prevent header cutoff */
           .block-container {{
-            padding-top: 1.5rem !important;
+            padding-top: 3.25rem !important;
             padding-bottom: 2rem !important;
             max-width: 98% !important;
           }}
