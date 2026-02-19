@@ -5,17 +5,27 @@ import base64
 from pathlib import Path
 import streamlit as st
 import streamlit as _stmod  # Needed for the monkeypatch
-import streamlit.components.v1 as components  # FIX: used to remove "Revisado MAU" safely
 
 from simple_auth import require_shared_password
 
-# --- 1. SAVE THE SAFE LOCATION (CRITICAL FIX) ---
-ROOT = Path(__file__).resolve().parents[1]
+# --- Robust ROOT detection (fixes /apps/apps/...) ---
+_THIS = Path(__file__).resolve()
+ROOT = None
+for p in [_THIS] + list(_THIS.parents):
+    if (p / "app.py").exists():  # your main toolbox entrypoint
+        ROOT = p
+        break
+if ROOT is None:
+    # fallback: two levels up from pages/
+    ROOT = _THIS.parents[1]
+
 SAFE_ROOT = ROOT
 ASSETS = ROOT / "assets"
 
+
 def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("utf-8")
+
 
 def _inject_signature_css(logo_b64: str | None):
     logo_css = ""
@@ -86,18 +96,17 @@ def _inject_signature_css(logo_b64: str | None):
         unsafe_allow_html=True,
     )
 
+
 def _sidebar_nav():
     with st.sidebar:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
-            # FIX: Streamlit deprecation (use_container_width -> width)
-            st.image(str(logo), width="stretch")
+            st.image(str(logo), use_container_width=True)
 
         st.markdown("### HayCash ToolBox")
         st.caption("NAVEGACIÓN PRINCIPAL")
         st.divider()
 
-        # Navigation links
         st.page_link("app.py", label="🏠 Inicio")
         st.page_link("pages/01_Lector_CSF.py", label="🧾 Lector CSF")
         st.page_link("pages/02_CSV_a_TXT_BBVA.py", label="🏦 CSV a TXT BBVA")
@@ -111,6 +120,7 @@ def _sidebar_nav():
         if st.session_state.get("auth_ok"):
             user = st.session_state.get("auth_user") or "-"
             st.caption(f"Usuario: **{user}**")
+
 
 def _signature_header(title: str, subtitle: str):
     st.markdown(
@@ -127,6 +137,7 @@ def _signature_header(title: str, subtitle: str):
         unsafe_allow_html=True,
     )
 
+
 # --- PAGE SETUP ---
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 
@@ -138,72 +149,43 @@ logo_file = ASSETS / "haycash_logo.jpg"
 logo_b64 = _b64(logo_file) if logo_file.exists() else None
 _inject_signature_css(logo_b64)
 
-# 1. Sidebar Nav
+# 1) Sidebar nav FIRST (IMPORTANT: before monkeypatch)
 _sidebar_nav()
 
-# 2. Header
+# 2) Header
 _signature_header(
     title="Reporte Interactivo de Leads",
     subtitle="Análisis detallado y seguimiento de leads comerciales.",
 )
 
-# 3. Create card for sub-app controls
+# 3) Card for filters (the embedded app will write its "sidebar" controls here)
 with st.container(border=True):
     control_space = st.container()
 
-# FIX: Save original sidebar so the monkeypatch does NOT persist into other pages/home
+# Save original sidebar so the monkeypatch does NOT persist
 _ORIGINAL_SIDEBAR = _stmod.sidebar
 
-# Redirect sub-app's sidebar calls (filters, date ranges, etc.) to the main page card
-_stmod.sidebar = control_space
-
-# --- LAUNCH INTERNAL APP WITH CRASH PROTECTION ---
 try:
-    APP_DIR = ROOT / "apps" / "analisis_leads"
+    # Apply monkeypatch ONLY for embedded app
+    _stmod.sidebar = control_space
 
-    # Safety: ensure directory exists (prevents white screen if path is wrong)
+    APP_DIR = ROOT / "apps" / "analisis_leads"
     if not APP_DIR.exists():
         raise FileNotFoundError(f"App directory not found: {APP_DIR}")
 
+    # Tell embedded app: do NOT set page config, do NOT show extra title/header/logout/logo/auth
+    os.environ["HC_EMBEDDED"] = "1"
+    os.environ["HC_SKIP_PAGE_CONFIG"] = "1"
+    os.environ["HC_SKIP_INTERNAL_AUTH"] = "1"
+
     os.chdir(APP_DIR)
     runpy.run_path(str(APP_DIR / "streamlit_app.py"), run_name="__main__")
-
-    # FIX: Remove "Revisado MAU" wherever it appears in the rendered DOM
-    components.html(
-        """
-        <script>
-        (function() {
-          function hideRevisadoMAU() {
-            try {
-              const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-              let node;
-              while ((node = walker.nextNode())) {
-                if (node.nodeValue && node.nodeValue.includes("Revisado MAU")) {
-                  const el = node.parentElement;
-                  if (el) {
-                    el.style.display = "none";
-                  }
-                }
-              }
-            } catch (e) {}
-          }
-          setTimeout(hideRevisadoMAU, 50);
-          setTimeout(hideRevisadoMAU, 300);
-          setTimeout(hideRevisadoMAU, 1000);
-        })();
-        </script>
-        """,
-        height=0,
-        width=0,
-    )
 
 except Exception as e:
     st.error(f"Application Error: {e}")
     st.exception(e)
 
 finally:
-    # FIX: Always restore sidebar monkeypatch so navigation/home doesn't break after leaving this page
+    # Restore sidebar and cwd
     _stmod.sidebar = _ORIGINAL_SIDEBAR
-
-    # CRITICAL: Always return to the safe root folder.
     os.chdir(SAFE_ROOT)
