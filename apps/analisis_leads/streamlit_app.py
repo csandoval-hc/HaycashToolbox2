@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import urllib.parse
 
 _APP_DIR = Path(__file__).resolve().parent
 if str(_APP_DIR) not in sys.path:
@@ -140,7 +141,10 @@ DB_NAME = "calculados"
 
 @st.cache_resource
 def get_db_engine():
-    return sqlalchemy.create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}")
+    # Safely encode the password in case it contains special characters
+    safe_pass = urllib.parse.quote_plus(DB_PASS) if DB_PASS else ""
+    # FIXED: Added :{DB_PORT} into the URL string so it actually uses your custom port
+    return sqlalchemy.create_engine(f"mysql+pymysql://{DB_USER}:{safe_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 engine = get_db_engine()
 
@@ -152,7 +156,7 @@ class ReviewStoreDB:
 
     def read_or_empty(self):
         try:
-            return pd.read_sql(self.table_name, self.engine)
+            return pd.read_sql(f"SELECT * FROM {self.table_name}", self.engine)
         except Exception:
             return pd.DataFrame()
 
@@ -183,10 +187,9 @@ class ReviewStoreDB:
         df.to_sql(self.table_name, self.engine, if_exists='replace', index=False)
 
 # Read Data from MySQL
-try:
-    raw_snapshot = pd.read_sql("leads_dashboard_snapshot", engine)
-except Exception:
-    raw_snapshot = pd.DataFrame()
+# FIXED: Removed the try...except block. If it fails now, it will throw a red error 
+# on your screen telling you EXACTLY why it couldn't connect.
+raw_snapshot = pd.read_sql("SELECT * FROM leads_dashboard_snapshot", engine)
 
 review_store = ReviewStoreDB(engine, "reviewed_leads_app")
 reviewed_tbl = review_store.read_or_empty()
