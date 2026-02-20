@@ -17,6 +17,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
+import sqlalchemy
 
 from leads_logic import (
     ReviewStore,
@@ -128,17 +129,69 @@ if not EMBEDDED:
     if logo_path.exists():
         st.sidebar.image(str(logo_path), use_container_width=True)
 
-# === ONLY CHANGE: set correct default CSV paths when env vars are not provided ===
-snapshot_path = Path(
-    os.getenv("SNAPSHOT_CSV", str(Path("leads_dashboard_snapshot.csv")))
-)
-reviewed_path = Path(os.getenv("REVIEWED_CSV", str(DEFAULT_REVIEWED_CSV)))
+# =========================================================================
+# === DB CONFIGURATION (FILL THESE IN WITH YOUR MYSQL CREDENTIALS) ===
+# =========================================================================
+DB_HOST = "haycash-prod.cluster-cymmiznbjsjw.us-east-1.rds.amazonaws.com"
+DB_USER = "csandoval"
+DB_PASS = "4Jz~QT,Epa%d@K#(yRSp*=V265+q0vdC"
+DB_NAME = "calculados"
 
-snapshot_src = SnapshotSource(snapshot_path)
-review_store = ReviewStore(reviewed_path)
+@st.cache_resource
+def get_db_engine():
+    return sqlalchemy.create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}")
+
+engine = get_db_engine()
+
+class ReviewStoreDB:
+    """Replaces the CSV ReviewStore to read/write directly to MySQL"""
+    def __init__(self, db_engine, table_name="reviewed_leads_app"):
+        self.engine = db_engine
+        self.table_name = table_name
+
+    def read_or_empty(self):
+        try:
+            return pd.read_sql(self.table_name, self.engine)
+        except Exception:
+            return pd.DataFrame()
+
+    def mark(self, lead_ids, user):
+        import datetime
+        df = self.read_or_empty()
+        
+        if 'Lead_id' not in df.columns:
+            df['Lead_id'] = []
+
+        # Remove old marks for these IDs so we don't duplicate
+        if not df.empty:
+            df = df[~df['Lead_id'].astype(str).isin(map(str, lead_ids))]
+
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_rows = pd.DataFrame({
+            "Lead_id": lead_ids,
+            "revisado": 1,
+            "revisado_por": user,
+            "fecha_revision": now
+        })
+        
+        df = pd.concat([df, new_rows], ignore_index=True)
+        df.to_sql(self.table_name, self.engine, if_exists='replace', index=False)
+
+    def reset(self):
+        df = pd.DataFrame(columns=["Lead_id", "revisado", "revisado_por", "fecha_revision"])
+        df.to_sql(self.table_name, self.engine, if_exists='replace', index=False)
+
+# Read Data from MySQL
+try:
+    raw_snapshot = pd.read_sql("leads_dashboard_snapshot", engine)
+except Exception:
+    raw_snapshot = pd.DataFrame()
+
+review_store = ReviewStoreDB(engine, "reviewed_leads_app")
+reviewed_tbl = review_store.read_or_empty()
+# =========================================================================
+
 blocked_rfcs = load_blocked_rfcs(Path("www"))
-
-raw_snapshot = snapshot_src.read_or_empty()
 snapshot = build_snapshot_view(raw_snapshot)
 
 if not snapshot.empty and "rfc" in snapshot.columns and blocked_rfcs:
@@ -149,7 +202,6 @@ if not snapshot.empty and "rfc" in snapshot.columns and blocked_rfcs:
         .isin(blocked_rfcs)
     ].copy()
 
-reviewed_tbl = review_store.read_or_empty()
 enriched_df = enrich(snapshot, reviewed_tbl)
 
 # Filters (these go into the wrapper card because sidebar is monkeypatched)
@@ -209,14 +261,23 @@ def selectable_table(df: pd.DataFrame, key: str) -> tuple[pd.DataFrame, list[str
     if sel_col not in work.columns:
         work.insert(0, sel_col, False)
 
+    # Freeze 'nombre' column by setting it as the index
+    # In Streamlit, the index is automatically pinned/frozen to the left side when scrolling
+    if "nombre" in work.columns:
+        work = work.set_index("nombre")
+        hide_idx = False
+    else:
+        hide_idx = True
+
     edited = st.data_editor(
         work,
         key=key,
-        hide_index=True,
+        hide_index=hide_idx,
         use_container_width=True,
         column_config={sel_col: st.column_config.CheckboxColumn(required=False)},
         disabled=[c for c in work.columns if c != sel_col],
     )
+    
     selected = edited[edited[sel_col] == True]
     selected_ids = (
         selected["Lead_id"].astype(str).tolist() if "Lead_id" in selected.columns else []
@@ -298,7 +359,7 @@ with tab_downloads:
     st.download_button(
         "Descargar CSV (reviewed_leads_app.csv)",
         data=reviewed_tbl.to_csv(index=False).encode("utf-8-sig"),
-        file_name=reviewed_path.name,
+        file_name="reviewed_leads_app.csv",
         mime="text/csv",
         use_container_width=True,
     )
@@ -306,8 +367,8 @@ with tab_downloads:
 with tab_admin:
     st.subheader("Admin")
 
-    st.write("Rutas actuales:")
-    st.code(f"snapshot: {snapshot_path}\nreviewed: {reviewed_path}")
+    st.write("Conexión de Base de Datos:")
+    st.code(f"Host: {DB_HOST}\nBase de datos: {DB_NAME}")
 
     admin_user = str(st.session_state.get("auth_user") or "").lower()
     is_admin = admin_user in {"doc", "enrique"} or (
