@@ -133,6 +133,7 @@ if not EMBEDDED:
 # === DB CONFIGURATION (FILL THESE IN WITH YOUR MYSQL CREDENTIALS) ===
 # =========================================================================
 DB_HOST = "haycash-prod.cluster-cymmiznbjsjw.us-east-1.rds.amazonaws.com"
+DB_PORT = "63306"
 DB_USER = "csandoval"
 DB_PASS = "4Jz~QT,Epa%d@K#(yRSp*=V265+q0vdC"
 DB_NAME = "calculados"
