@@ -15,3 +15,5 @@ xlsxwriter
 pdfplumber
 pdf2image
 jellyfish
+sqlalchemy
+pymysql
