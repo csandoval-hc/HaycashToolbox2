@@ -470,19 +470,18 @@ st.markdown(f"""
             z-index: 2;
             top: 40px !important; 
             left: 30px !important;
-            right: 30px !important; /* Forces the width of the label to be correct */
+            right: 30px !important; /* Locks width to button minus padding */
             color: #f5f5f7;
             font-size: 1.5rem;
             font-weight: 600;
             letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
-            width: auto;
             line-height: 1.3;
             pointer-events: none;
             display: -webkit-box;
             -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3; /* Allows long names to wrap without breaking layout */
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: normal !important;
