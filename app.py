@@ -352,16 +352,6 @@ st.markdown(f"""
             text-overflow: ellipsis;
         }}
 
-        .hc-homebar-logo {{
-            width: 380px; 
-            height: 100px; 
-            background-repeat: no-repeat;
-            background-position: right center;
-            background-size: contain;
-            opacity: 0.92;
-            flex: 0 0 auto;
-        }}
-
         .hc-homebar-accent {{
             height: 3px;
             width: 100%;
@@ -527,9 +517,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 6. RENDER HEADER ---
-logo_img = f'<img src="data:image/jpg;base64,{logo_b64}" class="logo-mark">' if logo_b64 else ""
-topbar_logo_style = f'style="background-image:url(data:image/jpg;base64,{logo_b64});"' if logo_b64 else ""
-
 try:
     st.markdown(f"""
         <div class="hc-homebar">
@@ -538,7 +525,6 @@ try:
                     <div class="hc-homebar-title">HayCash ToolBox</div>
                 </div>
             </div>
-            <div class="hc-homebar-logo" {topbar_logo_style}></div>
         </div>
         <div class="hc-homebar-accent"></div>
     """, unsafe_allow_html=True)
