@@ -400,19 +400,22 @@ st.markdown(f"""
         
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* FIXED UNIFORM CARDS */
+        /* PERFECTLY SYMMETRICAL CARDS */
         div.stButton > button {{
             all: unset; 
-            display: block !important; 
+            display: flex !important; 
+            flex-direction: column !important;
+            justify-content: flex-start !important;
             width: 100% !important; 
             height: 250px !important; 
             min-height: 250px !important;
             max-height: 250px !important;
-            box-sizing: border-box;
+            box-sizing: border-box !important;
+            padding: 40px 30px !important;
             background: transparent;
             border: none;
             border-radius: 24px;
-            position: relative !important;
+            position: relative;
             overflow: hidden; 
             opacity: 0; 
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -466,24 +469,22 @@ st.markdown(f"""
         }}
 
         div.stButton > button p {{
-            position: absolute !important;
-            z-index: 2;
-            top: 40px !important; 
-            left: 30px !important;
-            right: 30px !important; /* Locks width to button minus padding */
-            color: #f5f5f7;
-            font-size: 1.5rem;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-            margin: 0;
-            text-align: left;
-            line-height: 1.3;
-            pointer-events: none;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 3; /* Allows long names to wrap without breaking layout */
-            overflow: hidden;
-            text-overflow: ellipsis;
+            position: relative !important;
+            z-index: 2 !important;
+            color: #f5f5f7 !important;
+            font-size: 1.5rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.3px !important;
+            margin: 0 !important;
+            text-align: left !important;
+            width: 100% !important;
+            line-height: 1.3 !important;
+            pointer-events: none !important;
+            display: -webkit-box !important;
+            -webkit-box-orient: vertical !important;
+            -webkit-line-clamp: 3 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
             white-space: normal !important;
         }}
 
