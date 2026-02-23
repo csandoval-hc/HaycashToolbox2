@@ -400,19 +400,19 @@ st.markdown(f"""
         
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* PERFECTLY SYMMETRICAL CARDS */
+        /* FIXED UNIFORM CARDS */
         div.stButton > button {{
             all: unset; 
             display: block !important; 
-            width: 100% !important; 
-            height: 250px !important; 
+            width: 100% !important; /* RESTORED FULL WIDTH */
+            height: 250px !important; /* LOCKED HEIGHT */
             min-height: 250px !important;
             max-height: 250px !important;
             box-sizing: border-box;
             background: transparent;
             border: none;
             border-radius: 24px;
-            position: relative;
+            position: relative !important;
             overflow: hidden; 
             opacity: 0; 
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -465,6 +465,7 @@ st.markdown(f"""
             animation: periodicSheen 6s ease-in-out infinite;
         }}
 
+        /* STRICT ABSOLUTE ANCHORING FOR TEXT */
         div.stButton > button p {{
             position: absolute !important;
             z-index: 2;
@@ -477,7 +478,7 @@ st.markdown(f"""
             letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
-            width: auto;
+            width: auto !important; /* ALLOWS TEXT TO FILL BUTTON WIDTH */
             line-height: 1.3;
             pointer-events: none;
             display: -webkit-box;
