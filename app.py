@@ -32,7 +32,7 @@ from simple_auth import require_shared_password
 # --- 1. APP CONFIGURATION ---
 st.set_page_config(
     page_title="HayCash ToolBox",
-    page_icon="💎",
+    page_icon="assets/haycash_logo.jpg",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
