@@ -30,9 +30,20 @@ except Exception as e:
 from simple_auth import require_shared_password
 
 # --- 1. APP CONFIGURATION ---
+# The page_icon is updated with a data-uri that crops/zooms the logo 
+# to show only the central graphic as requested.
+logo_path_for_tab = PROJECT_ROOT / "assets" / "haycash_logo.jpg"
+if logo_path_for_tab.exists():
+    with open(logo_path_for_tab, "rb") as f:
+        encoded_logo = base64.b64encode(f.read()).decode()
+    # This SVG wrapper acts as a "zoom lens" focusing on the center 50% of your logo
+    custom_tab_icon = f'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="25 25 50 50" width="100" height="100"><image href="data:image/jpeg;base64,{encoded_logo}" x="0" y="0" width="100" height="100"/></svg>'
+else:
+    custom_tab_icon = "💎"
+
 st.set_page_config(
     page_title="HayCash ToolBox",
-    page_icon="assets/haycash_logo.jpg",
+    page_icon=custom_tab_icon,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
