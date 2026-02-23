@@ -404,7 +404,7 @@ st.markdown(f"""
         div.stButton > button {{
             all: unset; 
             display: block !important; 
-            width: 100% !important; /* RESTORED FULL WIDTH */
+            width: 100% !important; 
             height: 250px !important; /* LOCKED HEIGHT */
             min-height: 250px !important;
             max-height: 250px !important;
@@ -478,7 +478,7 @@ st.markdown(f"""
             letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
-            width: auto !important; /* ALLOWS TEXT TO FILL BUTTON WIDTH */
+            width: calc(100% - 60px) !important; /* FIXED WIDTH FIX */
             line-height: 1.3;
             pointer-events: none;
             display: -webkit-box;
