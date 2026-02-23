@@ -405,7 +405,7 @@ st.markdown(f"""
             all: unset; 
             display: block !important; 
             width: 100% !important; 
-            height: 250px !important; /* LOCKED HEIGHT */
+            height: 250px !important; 
             min-height: 250px !important;
             max-height: 250px !important;
             box-sizing: border-box;
@@ -465,20 +465,19 @@ st.markdown(f"""
             animation: periodicSheen 6s ease-in-out infinite;
         }}
 
-        /* STRICT ABSOLUTE ANCHORING FOR TEXT */
         div.stButton > button p {{
             position: absolute !important;
             z-index: 2;
             top: 40px !important; 
             left: 30px !important;
-            right: 30px !important;
+            right: 30px !important; /* Forces the width of the label to be correct */
             color: #f5f5f7;
             font-size: 1.5rem;
             font-weight: 600;
             letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
-            width: calc(100% - 60px) !important; /* FIXED WIDTH FIX */
+            width: auto;
             line-height: 1.3;
             pointer-events: none;
             display: -webkit-box;
