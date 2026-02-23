@@ -25,8 +25,8 @@ def _inject_signature_css(logo_b64: str | None):
           background-repeat: no-repeat;
           background-position: right center;
           background-size: contain;
-          width: 280px;
-          height: 65px;
+          width: 600px;
+          height: 140px;
           flex-shrink: 0;
         }}
         """
@@ -65,6 +65,7 @@ def _inject_signature_css(logo_b64: str | None):
             display: flex;
             align-items: center;
             justify-content: space-between;
+            min-height: 160px; /* Adjusted for larger logo */
           }}
           .hc-topbar-title {{
             margin: 0;
