@@ -385,20 +385,20 @@ st.markdown(f"""
         
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* FIXED UNIFORM CARDS - STYLED TO PREVENT LAYOUT SHIFTS */
+        /* FIXED UNIFORM CARDS */
         div.stButton > button {{
             all: unset; 
-            display: block !important; /* Forces block context for sizing */
+            display: block !important; 
             width: 100% !important; 
-            height: 260px !important; /* Strict height lock */
-            min-height: 260px !important;
-            max-height: 260px !important;
-            padding: 0 !important; /* Padding moved to internal element */
+            height: 250px !important; /* STRICT LOCK */
+            min-height: 250px !important;
+            max-height: 250px !important;
+            box-sizing: border-box;
             background: transparent;
             border: none;
             border-radius: 24px;
-            position: relative;
-            overflow: hidden; 
+            position: relative !important;
+            overflow: hidden !important; 
             opacity: 0; 
             animation: cardFloatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }}
@@ -450,11 +450,11 @@ st.markdown(f"""
             animation: periodicSheen 6s ease-in-out infinite;
         }}
 
-        /* STRICT ABSOLUTE POSITIONING FOR TEXT CONTENT */
+        /* STRICT ABSOLUTE ANCHORING FOR TEXT */
         div.stButton > button p {{
             position: absolute !important;
             z-index: 2;
-            top: 40px !important; /* Locked starting position */
+            top: 40px !important; /* Forces all cards to start text at exact same pixel */
             left: 30px !important;
             right: 30px !important;
             color: #f5f5f7;
@@ -465,12 +465,13 @@ st.markdown(f"""
             text-align: left;
             line-height: 1.3;
             pointer-events: none;
-            /* Multi-line limit to prevent overflow */
+            /* Multi-line limit to prevent layout stretch */
             display: -webkit-box;
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 3;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: normal !important;
         }}
 
         div.stButton > button:hover {{
@@ -546,7 +547,7 @@ try:
         elif "Contrato" in name: icon = "📝"
 
         with col:
-            # Note: label_text layout is managed by the absolute CSS above
+            # Note: label_text is handled by absolute CSS anchor
             label_text = f"{icon}  \n\n{name}"
 
             if st.button(label_text, key=f"app_{a.get('id')}"):
