@@ -353,8 +353,8 @@ st.markdown(f"""
         }}
 
         .hc-homebar-logo {{
-            width: 380px; /* INCREASED SIZE */
-            height: 100px; /* INCREASED SIZE */
+            width: 380px; 
+            height: 100px; 
             background-repeat: no-repeat;
             background-position: right center;
             background-size: contain;
@@ -366,20 +366,15 @@ st.markdown(f"""
             height: 3px;
             width: 100%;
             background: linear-gradient(90deg, rgba(0,122,255,0) 0%, rgba(0,122,255,0.8) 25%, rgba(0,255,255,1) 45%, #ffffff 50%, rgba(0,255,255,1) 55%, rgba(0,122,255,0.8) 75%, rgba(0,122,255,0) 100%);
-            background-size: 200% 100%; /* Allows the gradient to be wider than the bar */
+            background-size: 200% 100%; 
             border-radius: 999px;
             margin-top: -52px;
             margin-bottom: 90px;
             box-shadow: 0 0 20px 2px rgba(0,255,255,0.5), 0 0 40px 5px rgba(0,122,255,0.3);
             opacity: 0.9;
-            animation: laserSweep 4s ease-in-out infinite; /* Added motion */
+            animation: laserSweep 4s ease-in-out infinite;
         }}
 
-        /* Old header not used for layout anymore (kept intact elsewhere) */
-        .apple-header {{
-            display: none;
-        }}
-        
         .logo-mark {{
             width: 80px; 
             height: 80px;
@@ -388,24 +383,9 @@ st.markdown(f"""
             border: 1px solid rgba(255,255,255,0.1);
         }}
         
-        .header-text {{
-            margin-left: 28px;
-        }}
-        
-        .header-text h1 {{
-            font-size: 5rem;
-            font-weight: 800;
-            letter-spacing: -2px; 
-            margin: 0;
-            background: linear-gradient(135deg, #ffffff 10%, #a1a1aa 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        }}
-        
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* PERFECTLY SYMMETRICAL CARDS */
+        /* FIXED UNIFORM CARDS */
         div.stButton > button {{
             all: unset; 
             width: 100% !important; 
@@ -488,18 +468,14 @@ st.markdown(f"""
             line-height: 1.3;
             pointer-events: none;
             margin-top: 15px;
-        }}
-
-        /* === FIX: UNIFORM TEXT WRAPPING (PROFESSIONAL CONSISTENT CARDS) === */
-        /* This ensures long names (e.g., "Reporte Interactivo de Leads") do not change the perceived size/layout */
-        div.stButton > button p {{
+            /* Force uniform text clamping */
             display: -webkit-box;
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
-        
+
         div.stButton > button:hover {{
             transform: translateY(-8px) scale(1.02);
         }}
@@ -529,7 +505,6 @@ st.markdown(f"""
             100% {{ background-position: -100% 0; }}
         }}
 
-        /* The Laser Beam Animation */
         @keyframes laserSweep {{
             0% {{ background-position: 0% center; }}
             50% {{ background-position: 100% center; }}
