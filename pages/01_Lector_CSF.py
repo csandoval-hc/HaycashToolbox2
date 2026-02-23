@@ -26,8 +26,8 @@ def _inject_signature_css(logo_b64: str | None):
           background-repeat: no-repeat;
           background-position: right center;
           background-size: contain;
-          width: 280px;
-          height: 65px;
+          width: 420px;
+          height: 100px;
           flex-shrink: 0;
         }}
         """
