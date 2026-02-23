@@ -353,8 +353,8 @@ st.markdown(f"""
         }}
 
         .hc-homebar-logo {{
-            width: 220px;
-            height: 62px;
+            width: 380px; /* INCREASED SIZE */
+            height: 100px; /* INCREASED SIZE */
             background-repeat: no-repeat;
             background-position: right center;
             background-size: contain;
