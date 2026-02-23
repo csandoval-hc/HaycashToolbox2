@@ -385,20 +385,15 @@ st.markdown(f"""
         
         /* --- HOLOGRAPHIC GLASS CARDS --- */
         
-        /* FIXED UNIFORM CARDS */
+        /* FIXED UNIFORM CARDS - STYLED TO PREVENT LAYOUT SHIFTS */
         div.stButton > button {{
             all: unset; 
+            display: block !important; /* Forces block context for sizing */
             width: 100% !important; 
-            height: 240px !important;
-            min-height: 240px !important;
-            max-height: 240px !important;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start; 
-            padding-top: 40px !important;
-            padding-left: 30px !important;
-            padding-right: 30px !important;
-            box-sizing: border-box;
+            height: 260px !important; /* Strict height lock */
+            min-height: 260px !important;
+            max-height: 260px !important;
+            padding: 0 !important; /* Padding moved to internal element */
             background: transparent;
             border: none;
             border-radius: 24px;
@@ -455,23 +450,25 @@ st.markdown(f"""
             animation: periodicSheen 6s ease-in-out infinite;
         }}
 
+        /* STRICT ABSOLUTE POSITIONING FOR TEXT CONTENT */
         div.stButton > button p {{
-            position: relative;
+            position: absolute !important;
             z-index: 2;
+            top: 40px !important; /* Locked starting position */
+            left: 30px !important;
+            right: 30px !important;
             color: #f5f5f7;
             font-size: 1.5rem;
             font-weight: 600;
             letter-spacing: 0.3px;
             margin: 0;
             text-align: left;
-            width: 100%;
             line-height: 1.3;
             pointer-events: none;
-            margin-top: 15px;
-            /* Force uniform text clamping */
+            /* Multi-line limit to prevent overflow */
             display: -webkit-box;
             -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
@@ -549,6 +546,7 @@ try:
         elif "Contrato" in name: icon = "📝"
 
         with col:
+            # Note: label_text layout is managed by the absolute CSS above
             label_text = f"{icon}  \n\n{name}"
 
             if st.button(label_text, key=f"app_{a.get('id')}"):
