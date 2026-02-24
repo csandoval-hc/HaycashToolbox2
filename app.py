@@ -406,7 +406,7 @@ st.markdown(f"""
             display: flex !important; 
             flex-direction: column !important;
             justify-content: flex-start !important;
-            width: 100% !important; 
+            width: 350px !important; 
             height: 250px !important; 
             min-height: 250px !important;
             max-height: 250px !important;
