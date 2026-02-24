@@ -31,12 +31,12 @@ from simple_auth import require_shared_password
 
 # --- 1. APP CONFIGURATION ---
 # The page_icon is updated with a tightened SVG viewBox to "zoom in" on the center logo graphic.
-logo_path_for_tab = PROJECT_ROOT / "assets" / "haycash_logo.jpg"
+logo_path_for_tab = PROJECT_ROOT / "assets" / "image (12).png"
 if logo_path_for_tab.exists():
     with open(logo_path_for_tab, "rb") as f:
         encoded_logo = base64.b64encode(f.read()).decode()
-    # viewBox adjusted to focus specifically on the central dollar icon and arrows
-    custom_tab_icon = f'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="32 35 35 35" width="100" height="100"><image href="data:image/jpeg;base64,{encoded_logo}" x="0" y="0" width="100" height="100"/></svg>'
+    # viewBox adjusted to (15 15 70 70) to crop out the outer square and zoom into the arrows/dollar sign
+    custom_tab_icon = f'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="15 15 70 70" width="100" height="100"><image href="data:image/png;base64,{encoded_logo}" x="0" y="0" width="100" height="100"/></svg>'
 else:
     custom_tab_icon = "💎"
 
