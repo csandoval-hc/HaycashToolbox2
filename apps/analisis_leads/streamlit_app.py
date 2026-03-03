@@ -136,7 +136,7 @@ if not EMBEDDED:
 DB_HOST = "haycash-prod.cluster-cymmiznbjsjw.us-east-1.rds.amazonaws.com"
 DB_PORT = "63306"
 DB_USER = "csandoval"
-DB_PASS = "4Jz~QT,Epa%d@K#(yRSp*=V265+q0vdC"
+DB_PASS = ""
 DB_NAME = "calculados"
 
 @st.cache_resource
@@ -189,7 +189,23 @@ class ReviewStoreDB:
 # Read Data from MySQL
 # FIXED: Removed the try...except block. If it fails now, it will throw a red error 
 # on your screen telling you EXACTLY why it couldn't connect.
-raw_snapshot = pd.read_sql("SELECT * FROM leads_dashboard_snapshot", engine)
+# raw_snapshot = pd.read_sql("SELECT * FROM leads_dashboard_snapshot", engine)
+
+# =========================================================================
+# === CSV UPLOAD (REPLACES DATABASE SNAPSHOT SOURCE) ===
+# =========================================================================
+uploaded_snapshot = st.sidebar.file_uploader(
+    "Sube tu CSV de snapshot (leads_dashboard_snapshot)",
+    type=["csv"],
+    key="snapshot_csv_uploader",
+)
+
+if uploaded_snapshot is None:
+    st.sidebar.warning("Sube un CSV para continuar.")
+    st.stop()
+
+raw_snapshot = pd.read_csv(uploaded_snapshot)
+# =========================================================================
 
 review_store = ReviewStoreDB(engine, "reviewed_leads_app")
 reviewed_tbl = review_store.read_or_empty()
