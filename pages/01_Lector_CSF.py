@@ -1,13 +1,12 @@
 # pages/01_Lector_CSF.py
 # HayCash signature wrapper: consistent look + nav-only sidebar
-
 import os
 import runpy
 import base64
 from pathlib import Path
 
 import streamlit as st
-import streamlit as _stmod  # Needed for the monkeypatch
+import streamlit as _stmod  # monkeypatch target
 
 from simple_auth import require_shared_password
 
@@ -19,7 +18,6 @@ for p in [_THIS] + list(_THIS.parents):
         ROOT = p
         break
 if ROOT is None:
-    # fallback: two levels up from pages/
     ROOT = _THIS.parents[1]
 
 SAFE_ROOT = ROOT
@@ -48,21 +46,18 @@ def _inject_signature_css(logo_b64: str | None):
     st.markdown(
         f"""
         <style>
-          /* Hide Streamlit header */
           header[data-testid="stHeader"] {{
             height: 0 !important;
             min-height: 0 !important;
             display: none !important;
           }}
 
-          /* Layout */
           .block-container {{
             padding-top: 3.25rem !important;
             padding-bottom: 2rem !important;
             max-width: 98% !important;
           }}
 
-          /* Sidebar: keep only our nav */
           [data-testid="stSidebarNav"] {{ display: none !important; }}
 
           section[data-testid="stSidebar"] {{
@@ -70,7 +65,6 @@ def _inject_signature_css(logo_b64: str | None):
             border-right: 1px solid #e0e0e0;
           }}
 
-          /* Header bar */
           .hc-topbar {{
             width: 100%;
             background: #314270;
@@ -151,69 +145,130 @@ def _signature_header(title: str, subtitle: str):
     )
 
 
+def _looks_like_csf_app(py_path: Path) -> bool:
+    """
+    Heuristic: your CSF app has strong signatures (pdfplumber/pytesseract/pdf2image, CSF strings, etc.)
+    We use this to auto-find the entrypoint even if it was renamed/moved.
+    """
+    try:
+        txt = py_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+
+    # Avoid running wrappers/pages
+    if "/pages/" in str(py_path).replace("\\", "/"):
+        return False
+
+    needles = [
+        "pdfplumber",
+        "pytesseract",
+        "pdf2image",
+        "convert_from_path",
+        "CONSTANCIA",
+        "SITUACIÓN FISCAL",
+        "SITUACION FISCAL",
+        "parse_csf_fields",
+        "Generar Excel desde CSF/CFDI",
+    ]
+    score = sum(1 for n in needles if n in txt)
+    return score >= 3  # tuned for your posted CSF script
+
+
+def _find_csf_entrypoint() -> Path | None:
+    # 1) Try the most likely locations first
+    preferred = [
+        ROOT / "apps" / "lector_csf" / "streamlit_app.py",
+        ROOT / "apps" / "lector_csf" / "app.py",
+        ROOT / "apps" / "lector_csf" / "CDF_isaac.py",
+        ROOT / "apps" / "lector_csf" / "cdf_isaac.py",
+        ROOT / "apps" / "cdf_isaac" / "streamlit_app.py",
+        ROOT / "apps" / "cdf_isaac" / "app.py",
+        ROOT / "apps" / "cdf_isaac" / "CDF_isaac.py",
+        ROOT / "apps" / "cdf_isaac" / "cdf_isaac.py",
+    ]
+    for p in preferred:
+        if p.exists():
+            return p
+
+    # 2) If renamed/moved: scan under ROOT/apps then whole ROOT
+    scan_roots = [ROOT / "apps", ROOT]
+    seen = set()
+    candidates: list[Path] = []
+    for base in scan_roots:
+        if not base.exists():
+            continue
+        for py in base.rglob("*.py"):
+            py_str = str(py.resolve())
+            if py_str in seen:
+                continue
+            seen.add(py_str)
+            if py.name.startswith("_"):
+                continue
+            if py.name == "app.py" and "/pages/" in py_str.replace("\\", "/"):
+                continue
+            if _looks_like_csf_app(py):
+                candidates.append(py)
+
+    # Prefer something inside /apps/
+    candidates.sort(key=lambda p: (0 if "/apps/" in str(p).replace("\\", "/") else 1, len(str(p))))
+    return candidates[0] if candidates else None
+
+
 # --- PAGE SETUP ---
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 
-# Authentication
 require_shared_password()
 
-# Assets & Style
 logo_file = ASSETS / "haycash_logo.jpg"
 logo_b64 = _b64(logo_file) if logo_file.exists() else None
 _inject_signature_css(logo_b64)
 
-# 1) Sidebar nav FIRST (IMPORTANT: before monkeypatch)
 _sidebar_nav()
 
-# 2) Header
 _signature_header(
     title="Lector CSF",
     subtitle="Procesamiento y validación de Constancias de Situación Fiscal.",
 )
 
-# 3) Card for filters (the embedded app will write its "sidebar" controls here)
 with st.container(border=True):
     control_space = st.container()
 
-# FIX: save original sidebar AND current working dir
 _ORIGINAL_SIDEBAR = _stmod.sidebar
 _ORIGINAL_CWD = os.getcwd()
 
 try:
-    # Apply monkeypatch ONLY for embedded app
     _stmod.sidebar = control_space
 
-    # Folder that contains the CSF app
-    APP_DIR = ROOT / "apps" / "cdf_isaac"
-    if not APP_DIR.exists():
-        raise FileNotFoundError(f"App directory not found: {APP_DIR}")
+    entrypoint = _find_csf_entrypoint()
+    if entrypoint is None:
+        # Show debugging info to fix fast
+        st.error("No pude encontrar el entrypoint del Lector CSF automáticamente.")
+        st.write("Revisa que exista un .py del CSF dentro de /apps/ (o en el repo).")
+        st.write("ROOT detectado:", str(ROOT))
+        st.write("Contenido de ROOT/apps:")
+        apps_dir = ROOT / "apps"
+        if apps_dir.exists():
+            st.write([p.name for p in apps_dir.iterdir()])
+        st.stop()
 
-    # Choose entrypoint (try both common names)
-    candidates = [APP_DIR / "streamlit_app.py", APP_DIR / "CDF_isaac.py"]
-    ENTRYPOINT = next((p for p in candidates if p.exists()), None)
-    if ENTRYPOINT is None:
-        raise FileNotFoundError(f"Entrypoint not found: {candidates[0]} or {candidates[1]}")
-
-    # Tell embedded app: do NOT set page config, do NOT show extra title/header/logout/logo/auth
+    # Embedded flags
     os.environ["HC_EMBEDDED"] = "1"
     os.environ["HC_SKIP_PAGE_CONFIG"] = "1"
     os.environ["HC_SKIP_INTERNAL_AUTH"] = "1"
 
-    os.chdir(APP_DIR)
-    runpy.run_path(str(ENTRYPOINT), run_name="__main__")
+    os.chdir(entrypoint.parent)
+    runpy.run_path(str(entrypoint), run_name="__main__")
 
 except Exception as e:
     st.error(f"Application Error: {e}")
     st.exception(e)
 
 finally:
-    # CRITICAL: always restore sidebar monkeypatch and working directory
     _stmod.sidebar = _ORIGINAL_SIDEBAR
     try:
         os.chdir(_ORIGINAL_CWD)
     except Exception:
         os.chdir(SAFE_ROOT)
 
-    # Clean env so other pages are not affected
     for k in ["HC_EMBEDDED", "HC_SKIP_PAGE_CONFIG", "HC_SKIP_INTERNAL_AUTH"]:
         os.environ.pop(k, None)
