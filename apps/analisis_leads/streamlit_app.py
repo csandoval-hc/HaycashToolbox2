@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import urllib.parse
 
 _APP_DIR = Path(__file__).resolve().parent
 if str(_APP_DIR) not in sys.path:
@@ -17,6 +18,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
+import sqlalchemy
 
 from leads_logic import (
     ReviewStore,
@@ -124,24 +126,45 @@ if not EMBEDDED:
     st.caption(f"Usuario: {st.session_state.get('auth_user') or '-'}")
     logout_button()
 
+    # NOTE: Removed st.sidebar.image(logo) because in this app st.sidebar is monkeypatched
+    # into the center card, which caused the logo to appear huge in the middle.
+
 
 # =========================================================================
-# === REVIEW STORE (SESSION ONLY; NO DATABASE) ===
+# === DB CONFIGURATION (FILL THESE IN WITH YOUR MYSQL CREDENTIALS) ===
 # =========================================================================
-class ReviewStoreSession:
-    """
-    Minimal replacement for ReviewStoreDB to avoid any DB/VPN dependency.
-    Stores reviewed marks in st.session_state for the current session.
-    """
+DB_HOST = "haycash-prod.cluster-cymmiznbjsjw.us-east-1.rds.amazonaws.com"
+DB_PORT = "63306"
+DB_USER = "csandoval"
+DB_PASS = ""
+DB_NAME = "calculados"
 
-    def __init__(self, session_key: str = "reviewed_leads_app_df"):
-        self.session_key = session_key
 
-    def read_or_empty(self) -> pd.DataFrame:
-        df = st.session_state.get(self.session_key)
-        if isinstance(df, pd.DataFrame):
-            return df.copy()
-        return pd.DataFrame(columns=["Lead_id", "revisado", "revisado_por", "fecha_revision"])
+@st.cache_resource
+def get_db_engine():
+    # Safely encode the password in case it contains special characters
+    safe_pass = urllib.parse.quote_plus(DB_PASS) if DB_PASS else ""
+    # FIXED: Added :{DB_PORT} into the URL string so it actually uses your custom port
+    return sqlalchemy.create_engine(
+        f"mysql+pymysql://{DB_USER}:{safe_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
+
+
+engine = get_db_engine()
+
+
+class ReviewStoreDB:
+    """Replaces the CSV ReviewStore to read/write directly to MySQL"""
+
+    def __init__(self, db_engine, table_name="reviewed_leads_app"):
+        self.engine = db_engine
+        self.table_name = table_name
+
+    def read_or_empty(self):
+        try:
+            return pd.read_sql(f"SELECT * FROM {self.table_name}", self.engine)
+        except Exception:
+            return pd.DataFrame()
 
     def mark(self, lead_ids, user):
         import datetime
@@ -166,16 +189,18 @@ class ReviewStoreSession:
         )
 
         df = pd.concat([df, new_rows], ignore_index=True)
-        st.session_state[self.session_key] = df
+        df.to_sql(self.table_name, self.engine, if_exists="replace", index=False)
 
     def reset(self):
         df = pd.DataFrame(columns=["Lead_id", "revisado", "revisado_por", "fecha_revision"])
-        st.session_state[self.session_key] = df
+        df.to_sql(self.table_name, self.engine, if_exists="replace", index=False)
 
 
 # =========================================================================
-# === CSV UPLOAD (SNAPSHOT SOURCE) ===
+# === CSV UPLOAD (REPLACES DATABASE SNAPSHOT SOURCE) ===
 # =========================================================================
+# IMPORTANT: In this app, st.sidebar is monkeypatched into the center card.
+# This keeps the left sidebar reserved for navigation.
 uploaded_snapshot = st.sidebar.file_uploader(
     "Sube tu CSV de snapshot (leads_dashboard_snapshot)",
     type=["csv"],
@@ -187,8 +212,9 @@ if uploaded_snapshot is None:
     st.stop()
 
 raw_snapshot = pd.read_csv(uploaded_snapshot)
+# =========================================================================
 
-review_store = ReviewStoreSession("reviewed_leads_app_df")
+review_store = ReviewStoreDB(engine, "reviewed_leads_app")
 reviewed_tbl = review_store.read_or_empty()
 # =========================================================================
 
@@ -300,6 +326,7 @@ with tab_pending:
     with btn_container:
         btn_cols = st.columns(3)
 
+        # MAU removed
         if btn_cols[0].button("Revisado (BRANDON)", use_container_width=True, type="primary"):
             if selected_ids:
                 review_store.mark(selected_ids, "BRANDON")
@@ -337,8 +364,6 @@ with tab_downloads:
     reviewed = enriched_df[enriched_df.get("revisado", 0) == 1].copy()
     reviewed = apply_filters(reviewed, reviewed=True, created_range=None, statuses=status_sel)
 
-    reviewed_tbl_current = review_store.read_or_empty()
-
     st.write("Pendientes (filtrado actual):")
     st.download_button(
         "Descargar CSV (pendientes)",
@@ -360,7 +385,7 @@ with tab_downloads:
     st.write("Reviewed store (raw):")
     st.download_button(
         "Descargar CSV (reviewed_leads_app.csv)",
-        data=reviewed_tbl_current.to_csv(index=False).encode("utf-8-sig"),
+        data=reviewed_tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name="reviewed_leads_app.csv",
         mime="text/csv",
         use_container_width=True,
@@ -370,7 +395,7 @@ with tab_admin:
     st.subheader("Admin")
 
     st.write("Conexión de Base de Datos:")
-    st.code("DB deshabilitada (modo CSV upload + reviewed en sesión).")
+    st.code(f"Host: {DB_HOST}\nBase de datos: {DB_NAME}")
 
     admin_user = str(st.session_state.get("auth_user") or "").lower()
     is_admin = admin_user in {"doc", "enrique"} or (
@@ -390,4 +415,4 @@ with tab_admin:
     st.dataframe(snapshot.head(50), use_container_width=True)
 
     st.write("Preview reviewed store:")
-    st.dataframe(review_store.read_or_empty().head(50), use_container_width=True)
+    st.dataframe(reviewed_tbl.head(50), use_container_width=True)
