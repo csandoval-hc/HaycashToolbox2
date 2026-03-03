@@ -126,9 +126,9 @@ if not EMBEDDED:
     st.caption(f"Usuario: {st.session_state.get('auth_user') or '-'}")
     logout_button()
 
-    logo_path = Path("www") / "logo.png"
-    if logo_path.exists():
-        st.sidebar.image(str(logo_path), use_container_width=True)
+    # NOTE: Removed st.sidebar.image(logo) because in this app st.sidebar is monkeypatched
+    # into the center card, which caused the logo to appear huge in the middle.
+
 
 # =========================================================================
 # === DB CONFIGURATION (FILL THESE IN WITH YOUR MYSQL CREDENTIALS) ===
@@ -139,17 +139,23 @@ DB_USER = "csandoval"
 DB_PASS = ""
 DB_NAME = "calculados"
 
+
 @st.cache_resource
 def get_db_engine():
     # Safely encode the password in case it contains special characters
     safe_pass = urllib.parse.quote_plus(DB_PASS) if DB_PASS else ""
     # FIXED: Added :{DB_PORT} into the URL string so it actually uses your custom port
-    return sqlalchemy.create_engine(f"mysql+pymysql://{DB_USER}:{safe_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    return sqlalchemy.create_engine(
+        f"mysql+pymysql://{DB_USER}:{safe_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
+
 
 engine = get_db_engine()
 
+
 class ReviewStoreDB:
     """Replaces the CSV ReviewStore to read/write directly to MySQL"""
+
     def __init__(self, db_engine, table_name="reviewed_leads_app"):
         self.engine = db_engine
         self.table_name = table_name
@@ -162,38 +168,39 @@ class ReviewStoreDB:
 
     def mark(self, lead_ids, user):
         import datetime
+
         df = self.read_or_empty()
-        
-        if 'Lead_id' not in df.columns:
-            df['Lead_id'] = []
+
+        if "Lead_id" not in df.columns:
+            df["Lead_id"] = []
 
         # Remove old marks for these IDs so we don't duplicate
         if not df.empty:
-            df = df[~df['Lead_id'].astype(str).isin(map(str, lead_ids))]
+            df = df[~df["Lead_id"].astype(str).isin(map(str, lead_ids))]
 
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        new_rows = pd.DataFrame({
-            "Lead_id": lead_ids,
-            "revisado": 1,
-            "revisado_por": user,
-            "fecha_revision": now
-        })
-        
+        new_rows = pd.DataFrame(
+            {
+                "Lead_id": lead_ids,
+                "revisado": 1,
+                "revisado_por": user,
+                "fecha_revision": now,
+            }
+        )
+
         df = pd.concat([df, new_rows], ignore_index=True)
-        df.to_sql(self.table_name, self.engine, if_exists='replace', index=False)
+        df.to_sql(self.table_name, self.engine, if_exists="replace", index=False)
 
     def reset(self):
         df = pd.DataFrame(columns=["Lead_id", "revisado", "revisado_por", "fecha_revision"])
-        df.to_sql(self.table_name, self.engine, if_exists='replace', index=False)
+        df.to_sql(self.table_name, self.engine, if_exists="replace", index=False)
 
-# Read Data from MySQL
-# FIXED: Removed the try...except block. If it fails now, it will throw a red error 
-# on your screen telling you EXACTLY why it couldn't connect.
-# raw_snapshot = pd.read_sql("SELECT * FROM leads_dashboard_snapshot", engine)
 
 # =========================================================================
 # === CSV UPLOAD (REPLACES DATABASE SNAPSHOT SOURCE) ===
 # =========================================================================
+# IMPORTANT: In this app, st.sidebar is monkeypatched into the center card.
+# This keeps the left sidebar reserved for navigation.
 uploaded_snapshot = st.sidebar.file_uploader(
     "Sube tu CSV de snapshot (leads_dashboard_snapshot)",
     type=["csv"],
@@ -297,7 +304,7 @@ def selectable_table(df: pd.DataFrame, key: str) -> tuple[pd.DataFrame, list[str
         column_config={sel_col: st.column_config.CheckboxColumn(required=False)},
         disabled=[c for c in work.columns if c != sel_col],
     )
-    
+
     selected = edited[edited[sel_col] == True]
     selected_ids = (
         selected["Lead_id"].astype(str).tolist() if "Lead_id" in selected.columns else []
