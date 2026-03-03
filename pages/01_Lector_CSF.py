@@ -1,19 +1,22 @@
+# pages/01_Lector_CSF.py
 # HayCash signature wrapper: consistent look + nav-only sidebar
+
 import os
 import runpy
 import base64
 from pathlib import Path
 
 import streamlit as st
-import streamlit as _stmod  # Needed for the monkeypatch
+import streamlit as _stmod  # Needed for monkeypatch
 
 from simple_auth import require_shared_password
 
-# --- Robust ROOT detection ---
+
+# --- Robust ROOT detection (fixes /apps/apps/...) ---
 _THIS = Path(__file__).resolve()
 ROOT = None
 for p in [_THIS] + list(_THIS.parents):
-    if (p / "app.py").exists():
+    if (p / "app.py").exists():  # main toolbox entrypoint
         ROOT = p
         break
 if ROOT is None:
@@ -153,26 +156,32 @@ logo_file = ASSETS / "haycash_logo.jpg"
 logo_b64 = _b64(logo_file) if logo_file.exists() else None
 _inject_signature_css(logo_b64)
 
+# 1) Sidebar nav FIRST (before monkeypatch)
 _sidebar_nav()
 
+# 2) Header
 _signature_header(
     title="Lector CSF",
     subtitle="Procesamiento y validación de Constancias de Situación Fiscal.",
 )
 
+# 3) Card for embedded app "sidebar" controls (if any)
 with st.container(border=True):
     control_space = st.container()
 
+# Save original sidebar AND cwd so nothing breaks other pages
 _ORIGINAL_SIDEBAR = _stmod.sidebar
 _ORIGINAL_CWD = os.getcwd()
 
 try:
+    # Monkeypatch only for embedded app
     _stmod.sidebar = control_space
 
     APP_DIR = ROOT / "apps" / "lector_csf"
     if not APP_DIR.exists():
         raise FileNotFoundError(f"App directory not found: {APP_DIR}")
 
+    # Tell embedded app to not override wrapper UI
     os.environ["HC_EMBEDDED"] = "1"
     os.environ["HC_SKIP_PAGE_CONFIG"] = "1"
     os.environ["HC_SKIP_INTERNAL_AUTH"] = "1"
@@ -191,5 +200,6 @@ finally:
     except Exception:
         os.chdir(SAFE_ROOT)
 
+    # Clean env flags so they don't leak to other apps
     for k in ["HC_EMBEDDED", "HC_SKIP_PAGE_CONFIG", "HC_SKIP_INTERNAL_AUTH"]:
         os.environ.pop(k, None)
