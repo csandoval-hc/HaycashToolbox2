@@ -61,7 +61,7 @@ def _inject_signature_css(logo_b64: str | None):
 
           /* Sidebar UI Fixes - Keeping only your Nav here */
           [data-testid="stSidebarNav"] {{ display: none !important; }}
-          
+
           section[data-testid="stSidebar"] {{
             background-color: #f8f9fa;
             border-right: 1px solid #e0e0e0;
@@ -170,8 +170,9 @@ _signature_header(
 with st.container(border=True):
     control_space = st.container()
 
-# Save original sidebar so the monkeypatch does NOT persist
+# FIX (matches your other apps): save original sidebar AND current working dir
 _ORIGINAL_SIDEBAR = _stmod.sidebar
+_ORIGINAL_CWD = os.getcwd()
 
 try:
     # Apply monkeypatch ONLY for embedded app
@@ -194,6 +195,9 @@ except Exception as e:
     st.exception(e)
 
 finally:
-    # Restore sidebar and cwd
+    # CRITICAL: always restore sidebar monkeypatch and working directory
     _stmod.sidebar = _ORIGINAL_SIDEBAR
-    os.chdir(SAFE_ROOT)
+    try:
+        os.chdir(_ORIGINAL_CWD)
+    except Exception:
+        os.chdir(SAFE_ROOT)
