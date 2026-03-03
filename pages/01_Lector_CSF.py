@@ -1,6 +1,5 @@
 # pages/01_Lector_CSF.py
 # HayCash signature wrapper: consistent look + nav-only sidebar
-# Embeds the CSF app living under /apps/cdf_isaac/CDF_isaac.py
 
 import os
 import runpy
@@ -16,7 +15,7 @@ from simple_auth import require_shared_password
 _THIS = Path(__file__).resolve()
 ROOT = None
 for p in [_THIS] + list(_THIS.parents):
-    if (p / "app.py").exists():  # your main toolbox entrypoint
+    if (p / "app.py").exists():  # main toolbox entrypoint
         ROOT = p
         break
 if ROOT is None:
@@ -49,21 +48,21 @@ def _inject_signature_css(logo_b64: str | None):
     st.markdown(
         f"""
         <style>
-          /* prevent header cutoff + add top spacing */
+          /* Hide Streamlit header */
           header[data-testid="stHeader"] {{
             height: 0 !important;
             min-height: 0 !important;
             display: none !important;
           }}
 
-          /* Fix page width to prevent header cutoff */
+          /* Layout */
           .block-container {{
             padding-top: 3.25rem !important;
             padding-bottom: 2rem !important;
             max-width: 98% !important;
           }}
 
-          /* Keep only custom Nav */
+          /* Sidebar: keep only our nav */
           [data-testid="stSidebarNav"] {{ display: none !important; }}
 
           section[data-testid="stSidebar"] {{
@@ -71,7 +70,7 @@ def _inject_signature_css(logo_b64: str | None):
             border-right: 1px solid #e0e0e0;
           }}
 
-          /* Unified Header Bar */
+          /* Header bar */
           .hc-topbar {{
             width: 100%;
             background: #314270;
@@ -82,20 +81,22 @@ def _inject_signature_css(logo_b64: str | None):
             justify-content: space-between;
             min-height: 160px;
           }}
+
           .hc-topbar-title {{
             margin: 0;
             font-size: 1.8rem;
             font-weight: 800;
             color: #ffffff;
           }}
+
           .hc-topbar-subtitle {{
             margin: 0;
             font-size: 1rem;
             color: rgba(255,255,255,0.85);
           }}
+
           {logo_css}
 
-          /* Yellow Accent Line */
           .hc-accent {{
             height: 5px;
             width: 100%;
@@ -138,7 +139,7 @@ def _signature_header(title: str, subtitle: str):
     st.markdown(
         f"""
         <div class="hc-topbar">
-          <div class="hc-topbar-left">
+          <div>
             <div class="hc-topbar-title">{title}</div>
             <div class="hc-topbar-subtitle">{subtitle}</div>
           </div>
@@ -153,7 +154,7 @@ def _signature_header(title: str, subtitle: str):
 # --- PAGE SETUP ---
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 
-# Authentication (wrapper is source of truth)
+# Authentication
 require_shared_password()
 
 # Assets & Style
@@ -161,7 +162,7 @@ logo_file = ASSETS / "haycash_logo.jpg"
 logo_b64 = _b64(logo_file) if logo_file.exists() else None
 _inject_signature_css(logo_b64)
 
-# 1) Sidebar nav FIRST (before monkeypatch)
+# 1) Sidebar nav FIRST (IMPORTANT: before monkeypatch)
 _sidebar_nav()
 
 # 2) Header
@@ -170,11 +171,11 @@ _signature_header(
     subtitle="Procesamiento y validación de Constancias de Situación Fiscal.",
 )
 
-# 3) Card for controls (the embedded app will write its sidebar controls here)
+# 3) Card for filters (the embedded app will write its "sidebar" controls here)
 with st.container(border=True):
     control_space = st.container()
 
-# Save original sidebar and cwd so monkeypatch does NOT persist
+# FIX: save original sidebar AND current working dir
 _ORIGINAL_SIDEBAR = _stmod.sidebar
 _ORIGINAL_CWD = os.getcwd()
 
@@ -182,16 +183,18 @@ try:
     # Apply monkeypatch ONLY for embedded app
     _stmod.sidebar = control_space
 
-    # ✅ CSF app folder (matches your repo screenshot)
+    # Folder that contains the CSF app
     APP_DIR = ROOT / "apps" / "cdf_isaac"
-    ENTRYPOINT = APP_DIR / "CDF_isaac.py"
-
     if not APP_DIR.exists():
         raise FileNotFoundError(f"App directory not found: {APP_DIR}")
-    if not ENTRYPOINT.exists():
-        raise FileNotFoundError(f"Entrypoint not found: {ENTRYPOINT}")
 
-    # Tell embedded app: do NOT set page config, do NOT show extra auth
+    # Choose entrypoint (try both common names)
+    candidates = [APP_DIR / "streamlit_app.py", APP_DIR / "CDF_isaac.py"]
+    ENTRYPOINT = next((p for p in candidates if p.exists()), None)
+    if ENTRYPOINT is None:
+        raise FileNotFoundError(f"Entrypoint not found: {candidates[0]} or {candidates[1]}")
+
+    # Tell embedded app: do NOT set page config, do NOT show extra title/header/logout/logo/auth
     os.environ["HC_EMBEDDED"] = "1"
     os.environ["HC_SKIP_PAGE_CONFIG"] = "1"
     os.environ["HC_SKIP_INTERNAL_AUTH"] = "1"
@@ -204,13 +207,13 @@ except Exception as e:
     st.exception(e)
 
 finally:
-    # Restore sidebar and cwd (critical)
+    # CRITICAL: always restore sidebar monkeypatch and working directory
     _stmod.sidebar = _ORIGINAL_SIDEBAR
     try:
         os.chdir(_ORIGINAL_CWD)
     except Exception:
         os.chdir(SAFE_ROOT)
 
-    # Prevent env leakage to other pages
+    # Clean env so other pages are not affected
     for k in ["HC_EMBEDDED", "HC_SKIP_PAGE_CONFIG", "HC_SKIP_INTERNAL_AUTH"]:
         os.environ.pop(k, None)
