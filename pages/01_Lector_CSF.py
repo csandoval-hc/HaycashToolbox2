@@ -3,19 +3,30 @@ import os
 import runpy
 import base64
 from pathlib import Path
+
 import streamlit as st
 import streamlit as _stmod  # Needed for the monkeypatch
 
 from simple_auth import require_shared_password
 
-# --- 1. SAVE THE SAFE LOCATION (CRITICAL FIX) ---
-# We save the main folder location so we can always return to it.
-ROOT = Path(__file__).resolve().parents[1]
+# --- Robust ROOT detection (fixes /apps/apps/...) ---
+_THIS = Path(__file__).resolve()
+ROOT = None
+for p in [_THIS] + list(_THIS.parents):
+    if (p / "app.py").exists():  # your main toolbox entrypoint
+        ROOT = p
+        break
+if ROOT is None:
+    # fallback: two levels up from pages/
+    ROOT = _THIS.parents[1]
+
 SAFE_ROOT = ROOT
 ASSETS = ROOT / "assets"
 
+
 def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("utf-8")
+
 
 def _inject_signature_css(logo_b64: str | None):
     logo_css = ""
@@ -51,7 +62,7 @@ def _inject_signature_css(logo_b64: str | None):
 
           /* Sidebar UI Fixes - Keeping only your Nav here */
           [data-testid="stSidebarNav"] {{ display: none !important; }}
-          
+
           section[data-testid="stSidebar"] {{
             background-color: #f8f9fa;
             border-right: 1px solid #e0e0e0;
@@ -79,6 +90,7 @@ def _inject_signature_css(logo_b64: str | None):
             font-size: 1rem;
             color: rgba(255,255,255,0.85);
           }}
+
           {logo_css}
 
           /* Yellow Accent Line */
@@ -89,33 +101,22 @@ def _inject_signature_css(logo_b64: str | None):
             border-radius: 0 0 12px 12px;
             margin-bottom: 2rem;
           }}
-
-          /* Professional container for the controls moved from sidebar */
-          .control-card {{
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 2rem;
-          }}
         </style>
         """,
         unsafe_allow_html=True,
     )
 
+
 def _sidebar_nav():
-    # This remains in the physical sidebar
     with st.sidebar:
         logo = ASSETS / "haycash_logo.jpg"
         if logo.exists():
-            # FIX: Streamlit deprecation (use_container_width -> width)
-            st.image(str(logo), width="stretch")
+            st.image(str(logo), use_container_width=True)
 
         st.markdown("### HayCash ToolBox")
         st.caption("NAVEGACIÓN PRINCIPAL")
         st.divider()
 
-        # Navigation links
         st.page_link("app.py", label="🏠 Inicio")
         st.page_link("pages/01_Lector_CSF.py", label="🧾 Lector CSF")
         st.page_link("pages/02_CSV_a_TXT_BBVA.py", label="🏦 CSV a TXT BBVA")
@@ -129,6 +130,7 @@ def _sidebar_nav():
         if st.session_state.get("auth_ok"):
             user = st.session_state.get("auth_user") or "-"
             st.caption(f"Usuario: **{user}**")
+
 
 def _signature_header(title: str, subtitle: str):
     st.markdown(
@@ -145,6 +147,7 @@ def _signature_header(title: str, subtitle: str):
         unsafe_allow_html=True,
     )
 
+
 # --- PAGE SETUP ---
 st.set_page_config(page_title="HayCash ToolBox", layout="wide", initial_sidebar_state="expanded")
 
@@ -156,47 +159,43 @@ logo_file = ASSETS / "haycash_logo.jpg"
 logo_b64 = _b64(logo_file) if logo_file.exists() else None
 _inject_signature_css(logo_b64)
 
-# 1. Render Navigation in the actual Sidebar
+# 1) Sidebar nav FIRST (IMPORTANT: before monkeypatch)
 _sidebar_nav()
 
-# 2. Render Header on the Main Page
+# 2) Header
 _signature_header(
-    title="Lector CSF",
-    subtitle="Generar Excel desde CSF/CFDI (SAT).",
+    title="Reporte Interactivo de Leads",
+    subtitle="Análisis detallado y seguimiento de leads comerciales.",
 )
 
-# 3. Create a card for the controls and redirect st.sidebar here
+# 3) Card for filters (the embedded app will write its "sidebar" controls here)
 with st.container(border=True):
     control_space = st.container()
 
-# FIX: Save original sidebar so the monkeypatch does NOT persist into other pages/home
+# Save original sidebar so the monkeypatch does NOT persist
 _ORIGINAL_SIDEBAR = _stmod.sidebar
 
-# MONKEYPATCH: Any call to st.sidebar in the sub-app now goes into 'control_space'
-_stmod.sidebar = control_space
-
-# --- LAUNCH INTERNAL APP WITH CRASH PROTECTION ---
 try:
-    APP_DIR = ROOT / "apps" / "cdf_isaac"
+    # Apply monkeypatch ONLY for embedded app
+    _stmod.sidebar = control_space
 
-    # Safety: ensure directory exists (prevents white screen if path is wrong)
+    APP_DIR = ROOT / "apps" / "analisis_leads"
     if not APP_DIR.exists():
         raise FileNotFoundError(f"App directory not found: {APP_DIR}")
 
-    # Force the system to enter the app directory so it finds its files
-    os.chdir(APP_DIR)
+    # Tell embedded app: do NOT set page config, do NOT show extra title/header/logout/logo/auth
+    os.environ["HC_EMBEDDED"] = "1"
+    os.environ["HC_SKIP_PAGE_CONFIG"] = "1"
+    os.environ["HC_SKIP_INTERNAL_AUTH"] = "1"
 
-    # Run the app
-    runpy.run_path(str(APP_DIR / "app_isaac.py"), run_name="__main__")
+    os.chdir(APP_DIR)
+    runpy.run_path(str(APP_DIR / "streamlit_app.py"), run_name="__main__")
 
 except Exception as e:
     st.error(f"Application Error: {e}")
     st.exception(e)
 
 finally:
-    # FIX: Always restore sidebar monkeypatch so navigation/home doesn't break after leaving this page
+    # Restore sidebar and cwd
     _stmod.sidebar = _ORIGINAL_SIDEBAR
-
-    # CRITICAL: Always return to the safe root folder.
-    # This prevents the white screen when you try to leave the page.
     os.chdir(SAFE_ROOT)
